@@ -178,6 +178,13 @@
     <input type="range" id="pT" min="0" max="3" step="0.1">
     <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
     <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>先生のルールでは触った側は止まらない想定</small></span></label>
+    <div class="row">
+      <label for="pHeadon">正面からぶつかったら</label>
+      <select id="pHeadon">
+        <option value="merge">二匹の向きを合成（先生案）</option>
+        <option value="swap">お互いの向きを交換（前の版）</option>
+      </select>
+    </div>
 
     <h2>表示</h2>
     <div class="row">
@@ -200,7 +207,7 @@
   <h2>このシミュレーションで決め打ちしている点（要確認）</h2>
   <ol>
     <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
-    <li><b>両方が動いていて正面からぶつかった場合</b>：お互いに触った・触られたことになり、向きを交換する。</li>
+    <li><b>両方が動いていて正面からぶつかった場合</b>：二匹とも止まり、二匹の進行方向ベクトルを合成した向きに進む（先生の案）。ちょうど真逆でぶつかって合成がゼロになるときは、止まっていつも通り次の向きを選ぶ。比較用に「向きを交換」も選べる。</li>
     <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
     <li><b>「ランダムに方向を変える」</b>：既定では完全にランダム（ばらつき180度）。スライダーを下げると、前の向きを少し変える程度になる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
@@ -261,7 +268,7 @@
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread' };
+  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
@@ -271,6 +278,7 @@
     document.getElementById('legColor').lastChild.textContent = legendText[D.color];
   });
   document.getElementById('pTrail').addEventListener('change', e => { D.trail = e.target.checked; });
+  document.getElementById('pHeadon').addEventListener('change', e => { D.headon = e.target.value; });
   document.getElementById('pFollow').addEventListener('change', e => { D.follow = e.target.checked; });
   document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
   const zoomEl = document.getElementById('pZoom');
@@ -357,8 +365,11 @@
 
         const aTouches = a.state === 0 && (Math.cos(a.h) * dx + Math.sin(a.h) * dy) > 0;
         const bTouches = b.state === 0 && (Math.cos(b.h) * -dx + Math.sin(b.h) * -dy) > 0;
-        if (aTouches) touches += touch(a, b);
-        if (bTouches) touches += touch(b, a);
+        if (aTouches && bTouches && D.headon === 'merge') touches += headOn(a, b);
+        else {
+          if (aTouches) touches += touch(a, b);
+          if (bTouches) touches += touch(b, a);
+        }
 
         // separate overlapping bodies
         const push = (d2 - dist) / 2, ux = dx / dist, uy = dy / dist;
@@ -386,6 +397,20 @@
     }
   }
   // toucher t touches victim v. Returns 1 if a new "touched" event happened.
+  // head-on: both crabs are touching each other, so (per 森山先生) both stop and go in the
+  // direction of the sum of their two heading vectors. Exactly opposite headings cancel out;
+  // then each simply stops and picks its next direction the usual way.
+  function headOn(a, b) {
+    if (a.state === 2 || b.state === 2) return (a.state !== 2 ? touch(b, a) : 0) + (b.state !== 2 ? touch(a, b) : 0);
+    const sx = Math.cos(a.h) + Math.cos(b.h), sy = Math.sin(a.h) + Math.sin(b.h);
+    const cancelled = Math.hypot(sx, sy) < 1e-6;
+    const h = cancelled ? null : Math.atan2(sy, sx);
+    for (const c of [a, b]) {
+      c.state = 2; c.remain = Math.max(1, P.T * FPS); c.flash = 12;
+      c.hNext = P.align ? (cancelled ? newHeading(c.h) : (h + TAU) % TAU) : c.h;
+    }
+    return 2;
+  }
   function touch(t, v) {
     if (v.state === 2) return 0;               // already reacting to an earlier touch
     v.state = 2; v.remain = Math.max(1, P.T * FPS); v.flash = 12;
