@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ミナミコメツキガニ シミュレーション（試作）</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f4f0;
+    --surface: #fcfcfb;
+    --line: #dedcd5;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #8a8883;
+    --accent: #2a78d6;
+    --accent-2: #eb6834;
+    --sand: #efe6d2;
+    --grid: #e6dcc6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #141413; --surface: #1a1a19; --line: #33322f;
+      --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+      --accent: #3987e5; --accent-2: #d95926;
+      --sand: #2a2620; --grid: #35302a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  header { padding: 20px 20px 8px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; }
+  .sub { color: var(--ink-2); margin: 0; }
+  blockquote {
+    margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--accent);
+    background: var(--surface); color: var(--ink-2); border-radius: 0 6px 6px 0;
+  }
+  main {
+    max-width: 1100px; margin: 0 auto; padding: 8px 20px 40px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start;
+  }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  canvas#arena {
+    width: 100%; aspect-ratio: 1 / 1; display: block;
+    background: var(--sand); border: 1px solid var(--line); border-radius: 8px;
+    touch-action: none;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } }
+  .tile {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 8px;
+  }
+  .tile .label { font-size: 12px; color: var(--ink-2); }
+  .tile .value { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .tile canvas { width: 100%; height: 38px; display: block; margin-top: 4px; }
+  .tile .hint { font-size: 11px; color: var(--ink-3); }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  .panel h2 { font-size: 13px; margin: 14px 0 6px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
+  .panel h2:first-child { margin-top: 0; }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; margin: 6px 0 2px; }
+  .row label { font-size: 13px; }
+  .row output { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+  input[type=range] { width: 100%; margin: 0 0 6px; accent-color: var(--accent); }
+  .check { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .check input { margin-top: 4px; accent-color: var(--accent); }
+  .check small { display: block; color: var(--ink-3); font-size: 11px; line-height: 1.4; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:hover { filter: brightness(0.96); }
+  select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  .notes { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; color: var(--ink-2); }
+  .notes h2 { font-size: 15px; color: var(--ink); margin: 0 0 8px; }
+  .notes ol { padding-left: 1.4em; margin: 0; }
+  .notes li { margin: 4px 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ミナミコメツキガニ シミュレーション（試作）</h1>
+  <p class="sub">「少し進んで止まる」「触られたら止まって、相手の向きに合わせる」だけで群れは生まれるか。</p>
+  <blockquote>
+    少し進んだら止まる、をランダムに方向を変えながら続ける。ただし、他個体に体を触れられたら止まって、触った相手の進行方向と同じ方向に進む。これを繰り返すだけ。
+  </blockquote>
+</header>
+
+<main>
+  <section class="stage">
+    <canvas id="arena" width="600" height="600" aria-label="シミュレーション画面"></canvas>
+    <div class="legend">
+      <span id="legColor"><i style="background: conic-gradient(hsl(0 60% 50%), hsl(90 60% 50%), hsl(180 60% 50%), hsl(270 60% 50%), hsl(360 60% 50%))"></i>色＝個体（同じ色は同じ個体）、尖った先が進行方向</span>
+      <span><i style="background: transparent; border: 2px solid var(--ink-3)"></i>止まっている</span>
+      <span><i style="background: transparent; border: 2px solid var(--ink)"></i>触られて向きを合わせ中</span>
+      <span>個体をタップすると追跡（もう一度で解除）。空いた場所をなぞると手で触る</span>
+    </div>
+    <div class="tiles">
+      <div class="tile">
+        <div class="label">整列度</div>
+        <div class="value" id="vPhi">0.00</div>
+        <canvas id="cPhi"></canvas>
+        <div class="hint">全員の向きベクトルの平均の長さ。1で全員同じ向き。</div>
+      </div>
+      <div class="tile">
+        <div class="label">最大の群れの割合</div>
+        <div class="value" id="vClu">0%</div>
+        <canvas id="cClu"></canvas>
+        <div class="hint">体の1.5倍以内でつながった最大集団に何割いるか。</div>
+      </div>
+      <div class="tile">
+        <div class="label">接触回数（直近5秒）</div>
+        <div class="value" id="vTouch">0</div>
+        <canvas id="cTouch"></canvas>
+        <div class="hint">「触られた」判定が起きた回数。</div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <h2>操作</h2>
+    <div class="btns">
+      <button class="primary" id="btnPlay">一時停止</button>
+      <button id="btnReset">リセット</button>
+      <button id="btnShuffle">配置を変える</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label for="preset">プリセット</label>
+      <select id="preset">
+        <option value="rule">先生のルール（既定）</option>
+        <option value="dense">個体数を増やす</option>
+        <option value="persist">向きを少しだけ変える</option>
+        <option value="notouch">触っても向きを合わせない（対照）</option>
+      </select>
+    </div>
+
+    <h2>個体</h2>
+    <div class="row"><label for="pN">個体数</label><output id="oN"></output></div>
+    <input type="range" id="pN" min="2" max="400" step="1">
+    <div class="row"><label for="pR">体の大きさ</label><output id="oR"></output></div>
+    <input type="range" id="pR" min="3" max="14" step="1">
+    <div class="row"><label for="pV">歩く速さ</label><output id="oV"></output></div>
+    <input type="range" id="pV" min="0.3" max="4" step="0.1">
+
+    <h2>「少し進んで止まる」</h2>
+    <div class="row"><label for="pL">一度に進む距離（体の何倍）</label><output id="oL"></output></div>
+    <input type="range" id="pL" min="0.5" max="20" step="0.5">
+    <div class="row"><label for="pP">止まる時間（秒）</label><output id="oP"></output></div>
+    <input type="range" id="pP" min="0" max="3" step="0.1">
+    <div class="row"><label for="pS">向きの変え方（ばらつき、度）</label><output id="oS"></output></div>
+    <input type="range" id="pS" min="0" max="180" step="5">
+
+    <h2>「触られたら」</h2>
+    <div class="row"><label for="pT">触られて止まる時間（秒）</label><output id="oT"></output></div>
+    <input type="range" id="pT" min="0" max="3" step="0.1">
+    <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
+    <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>先生のルールでは触った側は止まらない想定</small></span></label>
+    <label class="check"><input type="checkbox" id="pWrap"><span>端をつなげる（右端から出ると左端へ）<small>外すと壁で跳ね返る</small></span></label>
+
+    <h2>表示</h2>
+    <div class="row">
+      <label for="pColor">色の意味</label>
+      <select id="pColor">
+        <option value="id">個体ごとに固定</option>
+        <option value="heading">進行方向</option>
+      </select>
+    </div>
+    <label class="check"><input type="checkbox" id="pTrail" checked><span>軌跡を表示<small>直近1秒ほどの足あと</small></span></label>
+    <div class="row"><label for="pSpd">再生速度</label><output id="oSpd"></output></div>
+    <input type="range" id="pSpd" min="1" max="8" step="1">
+  </aside>
+</main>
+
+<section class="notes">
+  <h2>このシミュレーションで決め打ちしている点（要確認）</h2>
+  <ol>
+    <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
+    <li><b>両方が動いていて正面からぶつかった場合</b>：お互いに触った・触られたことになり、向きを交換する。</li>
+    <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
+    <li><b>「ランダムに方向を変える」</b>：既定では完全にランダム（ばらつき180度）。スライダーを下げると、前の向きを少し変える程度になる。</li>
+    <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
+    <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
+  </ol>
+</section>
+
+<script>
+(() => {
+  'use strict';
+  const FPS = 60;
+  const W = 600;                       // world size (px units)
+  const TAU = Math.PI * 2;
+
+  // ---------- parameters ----------
+  const P = {};
+  const PRESETS = {
+    rule:    { N: 80,  R: 6, V: 1.5, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 2 },
+    dense:   { N: 250, R: 6, V: 1.5, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 2 },
+    persist: { N: 120, R: 6, V: 1.5, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 2 },
+    notouch: { N: 120, R: 6, V: 1.5, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, wrap: true, spd: 2 },
+  };
+  const ctl = {
+    N: ['pN','oN', v => v],
+    R: ['pR','oR', v => v],
+    V: ['pV','oV', v => v.toFixed(1)],
+    L: ['pL','oL', v => v.toFixed(1) + '倍'],
+    P: ['pP','oP', v => v.toFixed(1) + '秒'],
+    S: ['pS','oS', v => v === 180 ? '完全ランダム' : v + '°'],
+    T: ['pT','oT', v => v.toFixed(1) + '秒'],
+    spd: ['pSpd','oSpd', v => v + '×'],
+  };
+  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', wrap: 'pWrap' };
+
+  function applyPreset(name) {
+    Object.assign(P, PRESETS[name]);
+    for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
+    for (const k in checks) document.getElementById(checks[k]).checked = P[k];
+    refreshOutputs();
+    reset();
+  }
+  function refreshOutputs() {
+    for (const k in ctl) { const [, oid, fmt] = ctl[k]; document.getElementById(oid).textContent = fmt(P[k]); }
+  }
+  for (const k in ctl) {
+    const [id] = ctl[k];
+    document.getElementById(id).addEventListener('input', e => {
+      P[k] = +e.target.value; refreshOutputs();
+      if (k === 'N' || k === 'R') resizeAgents();
+    });
+  }
+  for (const k in checks) {
+    document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
+  }
+  // display-only settings (not part of presets)
+  const D = { color: 'id', trail: true };
+  const legendText = {
+    id: '色＝個体（同じ色は同じ個体）、尖った先が進行方向',
+    heading: '色＝進行方向（同じ色なら同じ向き）、尖った先が進行方向',
+  };
+  document.getElementById('pColor').addEventListener('change', e => {
+    D.color = e.target.value;
+    document.getElementById('legColor').lastChild.textContent = legendText[D.color];
+  });
+  document.getElementById('pTrail').addEventListener('change', e => { D.trail = e.target.checked; });
+  let selected = -1;                   // index of the crab being followed, -1 = none
+
+  // ---------- RNG ----------
+  let seed = 1;
+  function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  let rand = mulberry32(seed);
+  function gauss() { let u = 0, v = 0; while (u === 0) u = rand(); while (v === 0) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+
+  // ---------- agents ----------
+  // state: 0 = moving, 1 = paused (voluntary), 2 = touched (waiting to adopt heading)
+  let agents = [];
+  const TRAIL = 30;                    // samples kept per crab (one sample every 2 steps)
+  function makeAgent(i) {
+    const h = rand() * TAU;
+    return { id: i, x: rand() * W, y: rand() * W, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [] };
+  }
+  function reset() {
+    rand = mulberry32(seed); agents = [];
+    for (let i = 0; i < P.N; i++) agents.push(makeAgent(i));
+    selected = -1; resetStats();
+  }
+  function resizeAgents() {
+    while (agents.length < P.N) agents.push(makeAgent(agents.length));
+    agents.length = Math.min(agents.length, P.N);
+    if (selected >= agents.length) selected = -1;
+  }
+  function agentColor(a) {
+    if (D.color === 'heading') return `hsl(${a.h * 180 / Math.PI} 65% 50%)`;
+    return `hsl(${(a.id * 137.508) % 360} 60% ${48 + (a.id % 3) * 6}%)`;
+  }
+  function newHeading(h) {
+    if (P.S >= 180) return rand() * TAU;
+    return (h + gauss() * P.S * Math.PI / 180 + TAU) % TAU;
+  }
+
+  // ---------- stats ----------
+  const HIST = 240;
+  const hist = { phi: [], clu: [], touch: [] };
+  let touchWindow = [];                // per-step touch counts for the last 5 s
+  let stepCount = 0;
+  function resetStats() { hist.phi = []; hist.clu = []; hist.touch = []; touchWindow = []; stepCount = 0; }
+
+  // ---------- one simulation step ----------
+  function step() {
+    const r = P.R, d2 = 2 * r, wrap = P.wrap;
+    let touches = 0;
+
+    // 1. own motion
+    for (const a of agents) {
+      if (a.state === 0) {
+        a.x += Math.cos(a.h) * P.V; a.y += Math.sin(a.h) * P.V;
+        a.remain -= P.V;
+        if (a.remain <= 0) { a.state = 1; a.remain = P.P * FPS; }
+      } else if (a.state === 1) {
+        if (--a.remain <= 0) { a.h = newHeading(a.h); a.state = 0; a.remain = P.L * d2; }
+      } else {
+        if (--a.remain <= 0) { a.h = a.hNext; a.state = 0; a.remain = P.L * d2; }
+      }
+      if (a.flash > 0) a.flash--;
+    }
+
+    // 2. contacts
+    const n = agents.length;
+    for (let i = 0; i < n; i++) {
+      const a = agents[i];
+      for (let j = i + 1; j < n; j++) {
+        const b = agents[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        if (wrap) { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 >= d2 * d2 || dist2 === 0) continue;
+        const dist = Math.sqrt(dist2);
+
+        const aTouches = a.state === 0 && (Math.cos(a.h) * dx + Math.sin(a.h) * dy) > 0;
+        const bTouches = b.state === 0 && (Math.cos(b.h) * -dx + Math.sin(b.h) * -dy) > 0;
+        if (aTouches) touches += touch(a, b);
+        if (bTouches) touches += touch(b, a);
+
+        // separate overlapping bodies
+        const push = (d2 - dist) / 2, ux = dx / dist, uy = dy / dist;
+        a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push;
+      }
+    }
+
+    // 3. boundaries
+    for (const a of agents) {
+      if (wrap) { a.x = (a.x % W + W) % W; a.y = (a.y % W + W) % W; }
+      else {
+        if (a.x < r) { a.x = r; a.h = Math.PI - a.h; } else if (a.x > W - r) { a.x = W - r; a.h = Math.PI - a.h; }
+        if (a.y < r) { a.y = r; a.h = -a.h; } else if (a.y > W - r) { a.y = W - r; a.h = -a.h; }
+        a.h = (a.h + TAU) % TAU;
+      }
+    }
+
+    // 4. stats
+    stepCount++;
+    if (stepCount % 2 === 0) for (const a of agents) { a.trail.push(a.x, a.y); if (a.trail.length > TRAIL * 2) a.trail.splice(0, 2); }
+    touchWindow.push(touches); if (touchWindow.length > 5 * FPS) touchWindow.shift();
+    if (stepCount % 6 === 0) {
+      pushHist(hist.phi, polarization());
+      pushHist(hist.clu, largestClusterFrac());
+      pushHist(hist.touch, touchWindow.reduce((s, v) => s + v, 0));
+    }
+  }
+  // toucher t touches victim v. Returns 1 if a new "touched" event happened.
+  function touch(t, v) {
+    if (v.state === 2) return 0;               // already reacting to an earlier touch
+    v.state = 2; v.remain = Math.max(1, P.T * FPS); v.flash = 12;
+    v.hNext = P.align ? t.h : v.h;
+    if (P.toucherStop && t.state === 0) { t.state = 2; t.remain = Math.max(1, P.T * FPS); t.hNext = t.h; }
+    return 1;
+  }
+  function pushHist(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
+  function polarization() {
+    let cx = 0, cy = 0;
+    for (const a of agents) { cx += Math.cos(a.h); cy += Math.sin(a.h); }
+    return agents.length ? Math.hypot(cx, cy) / agents.length : 0;
+  }
+  function largestClusterFrac() {
+    const n = agents.length; if (!n) return 0;
+    const parent = Array.from({ length: n }, (_, i) => i);
+    const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    const link = (P.R * 2 * 1.5) ** 2;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      let dx = agents[j].x - agents[i].x, dy = agents[j].y - agents[i].y;
+      if (P.wrap) { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
+      if (dx * dx + dy * dy < link) { const a = find(i), b = find(j); if (a !== b) parent[a] = b; }
+    }
+    const size = new Map(); let best = 0;
+    for (let i = 0; i < n; i++) { const r = find(i); const s = (size.get(r) || 0) + 1; size.set(r, s); if (s > best) best = s; }
+    return best / n;
+  }
+
+  // ---------- drawing ----------
+  const arena = document.getElementById('arena');
+  const ctx = arena.getContext('2d');
+  const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+  function fitCanvas(c) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = c.getBoundingClientRect();
+    const w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    return dpr;
+  }
+  function drawArena() {
+    fitCanvas(arena);
+    const s = arena.width / W;
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.fillStyle = css('--sand'); ctx.fillRect(0, 0, W, W);
+    ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1 / s;
+    for (let g = 100; g < W; g += 100) { ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, W); ctx.moveTo(0, g); ctx.lineTo(W, g); ctx.stroke(); }
+    const r = P.R, ink = css('--ink'), ink3 = css('--ink-3');
+    // trails (drawn under the bodies)
+    if (D.trail || selected >= 0) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (const a of agents) {
+        if (!D.trail && a.id !== selected) continue;
+        const t = a.trail; if (t.length < 4) continue;
+        ctx.strokeStyle = agentColor(a); ctx.globalAlpha = a.id === selected ? 0.9 : 0.35;
+        ctx.lineWidth = a.id === selected ? Math.max(2, r * 0.5) : Math.max(1, r * 0.3);
+        ctx.beginPath(); ctx.moveTo(t[0], t[1]);
+        for (let i = 2; i < t.length; i += 2) {
+          // break the line where the crab wrapped around the edge
+          if (Math.abs(t[i] - t[i - 2]) > W / 2 || Math.abs(t[i + 1] - t[i - 1]) > W / 2) ctx.moveTo(t[i], t[i + 1]);
+          else ctx.lineTo(t[i], t[i + 1]);
+        }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // bodies: a teardrop whose point shows the heading
+    for (const a of agents) {
+      const c = Math.cos(a.h), s = Math.sin(a.h);
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, r, a.h + 0.75 * Math.PI, a.h - 0.75 * Math.PI);   // the round back
+      ctx.lineTo(a.x + c * r * 2, a.y + s * r * 2);                          // the nose
+      ctx.closePath();
+      ctx.fillStyle = agentColor(a); ctx.fill();
+      if (a.id === selected) { ctx.lineWidth = 3; ctx.strokeStyle = ink; ctx.stroke(); }
+      else if (a.state === 2 || a.flash > 0) { ctx.lineWidth = 2; ctx.strokeStyle = ink; ctx.stroke(); }
+      else if (a.state === 1) { ctx.lineWidth = 1.5; ctx.strokeStyle = ink3; ctx.stroke(); }
+    }
+    if (selected >= 0 && selected < agents.length) {
+      const a = agents[selected];
+      ctx.beginPath(); ctx.arc(a.x, a.y, r * 3, 0, TAU);
+      ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  function drawSpark(id, data, max, color) {
+    const c = document.getElementById(id); const dpr = fitCanvas(c);
+    const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = c.width / dpr, h = c.height / dpr;
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = css('--line'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, h - 0.5); g.lineTo(w, h - 0.5); g.stroke();
+    if (data.length < 2) return;
+    g.strokeStyle = color; g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath();
+    const m = max || Math.max(1, ...data);
+    for (let i = 0; i < data.length; i++) {
+      const x = (i / (HIST - 1)) * w, y = h - 2 - (data[i] / m) * (h - 4);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+  }
+  function drawStats() {
+    const phi = hist.phi.at(-1) ?? 0, clu = hist.clu.at(-1) ?? 0, t = hist.touch.at(-1) ?? 0;
+    document.getElementById('vPhi').textContent = phi.toFixed(2);
+    document.getElementById('vClu').textContent = Math.round(clu * 100) + '%';
+    document.getElementById('vTouch').textContent = t;
+    drawSpark('cPhi', hist.phi, 1, css('--accent'));
+    drawSpark('cClu', hist.clu, 1, css('--accent'));
+    drawSpark('cTouch', hist.touch, 0, css('--accent-2'));
+  }
+
+  // ---------- loop ----------
+  let running = true;
+  function frame() {
+    if (running) for (let k = 0; k < P.spd; k++) step();
+    drawArena(); drawStats();
+    requestAnimationFrame(frame);
+  }
+  document.getElementById('btnPlay').addEventListener('click', e => { running = !running; e.target.textContent = running ? '一時停止' : '再生'; });
+  document.getElementById('btnReset').addEventListener('click', reset);
+  document.getElementById('btnShuffle').addEventListener('click', () => { seed = (seed * 7919 + 1) % 2147483647; reset(); });
+  document.getElementById('preset').addEventListener('change', e => applyPreset(e.target.value));
+
+  // tap on a crab: follow it. tap/drag elsewhere: a "hand" that touches crabs (a nudge from outside)
+  arena.addEventListener('pointerdown', ev => {
+    const [x, y] = toWorld(ev);
+    let hit = -1, best = (P.R * 1.8) ** 2;
+    for (const a of agents) { const d = (a.x - x) ** 2 + (a.y - y) ** 2; if (d < best) { best = d; hit = a.id; } }
+    if (hit >= 0) { selected = selected === hit ? -1 : hit; return; }
+    nudge(ev);
+  });
+  arena.addEventListener('pointermove', ev => { if (ev.buttons) nudge(ev); });
+  function toWorld(ev) {
+    const rect = arena.getBoundingClientRect();
+    return [(ev.clientX - rect.left) / rect.width * W, (ev.clientY - rect.top) / rect.height * W];
+  }
+  function nudge(ev) {
+    const [x, y] = toWorld(ev);
+    const hand = { h: 0, state: 0 };
+    for (const a of agents) {
+      const dx = a.x - x, dy = a.y - y, d = Math.hypot(dx, dy);
+      if (d < P.R * 4) { hand.h = Math.atan2(dy, dx); if (a.state !== 2) { touch(hand, a); touchWindow.length && touchWindow[touchWindow.length - 1]++; } }
+    }
+  }
+
+  applyPreset('rule');
+  requestAnimationFrame(frame);
+  // small hook for scripted checks (not used by the page itself)
+  window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P };
+})();
+</script>
+</body>
+</html>
