@@ -37,6 +37,7 @@
   h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; }
   .sub { color: var(--ink-2); margin: 0; }
   blockquote {
+    line-height: 1.8;
     margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--accent);
     background: var(--surface); color: var(--ink-2); border-radius: 0 6px 6px 0;
   }
@@ -94,9 +95,13 @@
 
 <header>
   <h1>ミナミコメツキガニ シミュレーション（試作）</h1>
-  <p class="sub">「少し進んで止まる」「触られたら止まって、相手の向きに合わせる」だけで群れは生まれるか。</p>
+  <p class="sub">1匹ごとの単純なルールだけで、ミナミコメツキガニの群れができるかを試す画面です。</p>
   <blockquote>
-    少し進んだら止まる、をランダムに方向を変えながら続ける。ただし、他個体に体を触れられたら止まって、触った相手の進行方向と同じ方向に進む。これを繰り返すだけ。
+    <b>カニ1匹のルール</b><br>
+    1. 少し進んで止まり、向きを変えて、また進む。<br>
+    2. 誰かに触れられたら止まり、その相手と同じ向きに進む。<br>
+    3. 止まったとき、次の一歩の候補をいくつか思い浮かべ、近くの仲間の候補と重なる先を選ぶ。重ならなければ、たまにしか進まない。<br>
+    <span style="color:var(--ink-3)">プリセット「基本」は 1 と 2 だけ。「予期」は 3 も使う。</span>
   </blockquote>
 </header>
 
