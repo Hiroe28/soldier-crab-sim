@@ -105,7 +105,7 @@
       <span id="legColor"><i style="background: conic-gradient(hsl(0 60% 50%), hsl(90 60% 50%), hsl(180 60% 50%), hsl(270 60% 50%), hsl(360 60% 50%))"></i>色＝個体（同じ色は同じ個体）、ハサミと目のある側が前</span>
       <span><i style="background: transparent; border: 2px solid var(--ink-3)"></i>止まっている</span>
       <span><i style="background: transparent; border: 2px solid var(--ink)"></i>触られて向きを合わせ中</span>
-      <span>個体をタップすると追跡（もう一度で解除）。空いた場所をなぞると手で触る</span>
+      <span>個体をタップすると追跡（もう一度で解除）。空いた場所をタップすると手で触る。ドラッグで移動、ホイールか「拡大」で寄る</span>
     </div>
     <div class="tiles">
       <div class="tile">
@@ -146,6 +146,17 @@
       </select>
     </div>
 
+    <h2>フィールド</h2>
+    <div class="row"><label for="pA">広さ（一辺、既定画面の何倍）</label><output id="oA"></output></div>
+    <input type="range" id="pA" min="1" max="6" step="0.5">
+    <div class="row">
+      <label for="pInit">最初の配置</label>
+      <select id="pInit">
+        <option value="spread">全体に散らばる</option>
+        <option value="center">中央にかたまる</option>
+      </select>
+    </div>
+
     <h2>個体</h2>
     <div class="row"><label for="pN">個体数</label><output id="oN"></output></div>
     <input type="range" id="pN" min="2" max="400" step="1">
@@ -178,6 +189,9 @@
       </select>
     </div>
     <label class="check"><input type="checkbox" id="pTrail" checked><span>軌跡を表示<small>直近1秒ほどの足あと</small></span></label>
+    <div class="row"><label for="pZoom">拡大</label><output id="oZoom"></output></div>
+    <input type="range" id="pZoom" min="1" max="8" step="0.25" value="1.5">
+    <label class="check"><input type="checkbox" id="pFollow" checked><span>追跡中の個体を画面の中心に<small>個体をタップすると追跡が始まる</small></span></label>
     <div class="row"><label for="pSpd">再生速度</label><output id="oSpd"></output></div>
     <input type="range" id="pSpd" min="1" max="8" step="1">
   </aside>
@@ -199,19 +213,21 @@
 (() => {
   'use strict';
   const FPS = 60;
-  const W = 600;                       // world size (px units)
+  const BASE = 600;                    // world size at 広さ 1倍 (px units)
+  let W = BASE;                        // current world size (square)
   const TAU = Math.PI * 2;
 
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    rule:    { N: 80,  R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
-    dense:   { N: 250, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
-    persist: { N: 120, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
-    notouch: { N: 120, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, wrap: true, spd: 1 },
+    rule:    { N: 60,  A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
+    dense:   { N: 250, A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
+    persist: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
+    notouch: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, wrap: true, spd: 1 },
   };
   const ctl = {
     N: ['pN','oN', v => v],
+    A: ['pA','oA', v => v + '倍'],
     R: ['pR','oR', v => v],
     V: ['pV','oV', v => v.toFixed(1)],
     L: ['pL','oL', v => v.toFixed(1) + '倍'],
@@ -227,6 +243,7 @@
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
     refreshOutputs();
+    W = BASE * P.A;
     reset();
   }
   function refreshOutputs() {
@@ -237,13 +254,14 @@
     document.getElementById(id).addEventListener('input', e => {
       P[k] = +e.target.value; refreshOutputs();
       if (k === 'N' || k === 'R') resizeAgents();
+      if (k === 'A') { W = BASE * P.A; reset(); }
     });
   }
   for (const k in checks) {
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true };
+  const D = { color: 'id', trail: true, zoom: 1.5, follow: true, init: 'spread' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
@@ -253,7 +271,16 @@
     document.getElementById('legColor').lastChild.textContent = legendText[D.color];
   });
   document.getElementById('pTrail').addEventListener('change', e => { D.trail = e.target.checked; });
+  document.getElementById('pFollow').addEventListener('change', e => { D.follow = e.target.checked; });
+  document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
+  const zoomEl = document.getElementById('pZoom');
+  function setZoom(z) {
+    D.zoom = Math.min(+zoomEl.max, Math.max(+zoomEl.min, z));
+    zoomEl.value = D.zoom; document.getElementById('oZoom').textContent = D.zoom.toFixed(2).replace(/\.?0+$/, '') + '×';
+  }
+  zoomEl.addEventListener('input', e => setZoom(+e.target.value));
   let selected = -1;                   // index of the crab being followed, -1 = none
+  const cam = { x: W / 2, y: W / 2 };  // world point shown at the centre of the canvas
 
   // ---------- RNG ----------
   let seed = 1;
@@ -267,12 +294,15 @@
   const TRAIL = 30;                    // samples kept per crab (one sample every 2 steps)
   function makeAgent(i) {
     const h = rand() * TAU;
-    return { id: i, x: rand() * W, y: rand() * W, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [] };
+    let x, y;
+    if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
+    else { x = rand() * W; y = rand() * W; }
+    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [] };
   }
   function reset() {
     rand = mulberry32(seed); agents = [];
     for (let i = 0; i < P.N; i++) agents.push(makeAgent(i));
-    selected = -1; resetStats();
+    selected = -1; cam.x = W / 2; cam.y = W / 2; resetStats();
   }
   function resizeAgents() {
     while (agents.length < P.N) agents.push(makeAgent(agents.length));
@@ -397,19 +427,36 @@
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     return dpr;
   }
+  // camera helpers: the canvas shows a square window of side W / zoom centred on cam
+  function viewSide() { return W / D.zoom; }
+  function clampCam() {
+    const half = viewSide() / 2;
+    cam.x = Math.min(W - half, Math.max(half, cam.x));
+    cam.y = Math.min(W - half, Math.max(half, cam.y));
+  }
   function drawArena() {
     fitCanvas(arena);
-    const s = arena.width / W;
-    ctx.setTransform(s, 0, 0, s, 0, 0);
+    if (D.follow && selected >= 0 && selected < agents.length) { cam.x = agents[selected].x; cam.y = agents[selected].y; }
+    clampCam();
+    const view = viewSide(), s = arena.width / view;
+    const vx0 = cam.x - view / 2, vy0 = cam.y - view / 2, vx1 = vx0 + view, vy1 = vy0 + view;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = css('--bg'); ctx.fillRect(0, 0, arena.width, arena.height);
+    ctx.setTransform(s, 0, 0, s, -vx0 * s, -vy0 * s);
     ctx.fillStyle = css('--sand'); ctx.fillRect(0, 0, W, W);
     ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1 / s;
-    for (let g = 100; g < W; g += 100) { ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, W); ctx.moveTo(0, g); ctx.lineTo(W, g); ctx.stroke(); }
+    ctx.beginPath();
+    for (let g = 100; g < W; g += 100) { ctx.moveTo(g, 0); ctx.lineTo(g, W); ctx.moveTo(0, g); ctx.lineTo(W, g); }
+    ctx.stroke();
     const r = P.R, ink = css('--ink'), ink3 = css('--ink-3');
+    const margin = Math.max(r * 3, P.L * r * 2 + 20);
+    const inView = a => a.x > vx0 - margin && a.x < vx1 + margin && a.y > vy0 - margin && a.y < vy1 + margin;
     // trails (drawn under the bodies)
     if (D.trail || selected >= 0) {
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       for (const a of agents) {
         if (!D.trail && a.id !== selected) continue;
+        if (!inView(a)) continue;
         const t = a.trail; if (t.length < 4) continue;
         ctx.strokeStyle = agentColor(a); ctx.globalAlpha = a.id === selected ? 0.9 : 0.35;
         ctx.lineWidth = a.id === selected ? Math.max(2, r * 0.5) : Math.max(1, r * 0.3);
@@ -427,6 +474,7 @@
     const LEGS = [0.55, 0.95, 1.35, 1.75];          // leg angles from the heading (radians)
     ctx.lineCap = 'round';
     for (const a of agents) {
+      if (!inView(a)) continue;
       const col = agentColor(a);
       const walking = a.state === 0;
       const swing = walking ? Math.sin(stepCount * 0.35 + a.id) * 0.18 : 0;
@@ -513,18 +561,38 @@
   document.getElementById('btnShuffle').addEventListener('click', () => { seed = (seed * 7919 + 1) % 2147483647; reset(); });
   document.getElementById('preset').addEventListener('change', e => applyPreset(e.target.value));
 
-  // tap on a crab: follow it. tap/drag elsewhere: a "hand" that touches crabs (a nudge from outside)
+  // tap on a crab: follow it. tap elsewhere: a "hand" that touches crabs. drag: pan the view. wheel: zoom.
+  let drag = null;
   arena.addEventListener('pointerdown', ev => {
+    drag = { x: ev.clientX, y: ev.clientY, moved: false };
+    arena.setPointerCapture(ev.pointerId);
+  });
+  arena.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    const rect = arena.getBoundingClientRect(), k = viewSide() / rect.width;
+    cam.x -= dx * k; cam.y -= dy * k; clampCam();
+    drag.x = ev.clientX; drag.y = ev.clientY;
+    if (D.follow) selected = -1;                       // panning by hand releases the follow
+  });
+  arena.addEventListener('pointerup', ev => {
+    if (!drag) return;
+    const tap = !drag.moved; drag = null;
+    if (!tap) return;
     const [x, y] = toWorld(ev);
-    let hit = -1, best = (P.R * 1.8) ** 2;
+    let hit = -1, best = (P.R * 2.2) ** 2;
     for (const a of agents) { const d = (a.x - x) ** 2 + (a.y - y) ** 2; if (d < best) { best = d; hit = a.id; } }
     if (hit >= 0) { selected = selected === hit ? -1 : hit; return; }
     nudge(ev);
   });
-  arena.addEventListener('pointermove', ev => { if (ev.buttons) nudge(ev); });
+  arena.addEventListener('pointercancel', () => { drag = null; });
+  arena.addEventListener('wheel', ev => { ev.preventDefault(); setZoom(D.zoom * Math.pow(1.15, -ev.deltaY / 100)); }, { passive: false });
   function toWorld(ev) {
-    const rect = arena.getBoundingClientRect();
-    return [(ev.clientX - rect.left) / rect.width * W, (ev.clientY - rect.top) / rect.height * W];
+    const rect = arena.getBoundingClientRect(), view = viewSide();
+    return [cam.x - view / 2 + (ev.clientX - rect.left) / rect.width * view,
+            cam.y - view / 2 + (ev.clientY - rect.top) / rect.height * view];
   }
   function nudge(ev) {
     const [x, y] = toWorld(ev);
@@ -535,6 +603,7 @@
     }
   }
 
+  setZoom(1.5);
   applyPreset('rule');
   requestAnimationFrame(frame);
   // small hook for scripted checks (not used by the page itself)
