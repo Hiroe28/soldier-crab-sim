@@ -54,8 +54,8 @@
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 12px; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  @media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .tiles { grid-template-columns: 1fr 1fr; } }
   .tile {
     background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 8px;
   }
@@ -121,6 +121,12 @@
         <div class="hint">体の1.5倍以内でつながった最大集団に何割いるか。</div>
       </div>
       <div class="tile">
+        <div class="label">3匹以上の群れにいる割合</div>
+        <div class="value" id="vGrp">0%</div>
+        <canvas id="cGrp"></canvas>
+        <div class="hint">体の1.5倍以内でつながった3匹以上の集団に何割いるか。</div>
+      </div>
+      <div class="tile">
         <div class="label">接触回数（直近5秒）</div>
         <div class="value" id="vTouch">0</div>
         <canvas id="cTouch"></canvas>
@@ -143,6 +149,7 @@
         <option value="dense">個体数を増やす</option>
         <option value="persist">向きを少しだけ変える</option>
         <option value="notouch">触っても向きを合わせない（対照）</option>
+        <option value="anticip">一歩先を予期する（本の要素、先生未確認）</option>
       </select>
     </div>
 
@@ -186,6 +193,12 @@
       </select>
     </div>
 
+    <h2>本（郡司モデル）から借りた要素 <small style="font-weight:400;color:var(--ink-3)">先生未確認・既定オフ</small></h2>
+    <label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する<small>止まったとき、前方の扇形（角度＝上の「ばらつき」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない</small></span></label>
+    <div class="row"><label for="pK">候補の数</label><output id="oK"></output></div>
+    <input type="range" id="pK" min="1" max="30" step="1">
+    <label class="check"><input type="checkbox" id="pChase"><span>空いた場所に入る（追尾）<small>候補が誰とも重ならないとき、近くの個体が去った場所へ向かう</small></span></label>
+
     <h2>表示</h2>
     <div class="row">
       <label for="pColor">色の意味</label>
@@ -212,6 +225,7 @@
     <li><b>「ランダムに方向を変える」</b>：既定では完全にランダム（ばらつき180度）。スライダーを下げると、前の向きを少し変える程度になる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：端に当たった個体は、それ以上進めないので止まり、いつも通りランダムに次の向きを選ぶ。端をつなげたり跳ね返したりはしない。</li>
+    <li><b>本から借りた要素（先生未確認、既定オフ）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルから、「候補が他個体の候補と重なった場所にしか進まない（重ならなければ動かない）」「空いた場所に入る（追尾）」の二つを、先生の「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
 </section>
@@ -227,10 +241,11 @@
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    rule:    { N: 50,  A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
-    dense:   { N: 200, A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
-    persist: { N: 80,  A: 2, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, spd: 1 },
-    notouch: { N: 80,  A: 2, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, spd: 1 },
+    rule:    { N: 50,  A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, align: true,  toucherStop: false, anticipate: false, chase: false, spd: 1 },
+    dense:   { N: 200, A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, align: true,  toucherStop: false, anticipate: false, chase: false, spd: 1 },
+    persist: { N: 80,  A: 2, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, K: 10, align: true,  toucherStop: false, anticipate: false, chase: false, spd: 1 },
+    notouch: { N: 80,  A: 2, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, K: 10, align: false, toucherStop: false, anticipate: false, chase: false, spd: 1 },
+    anticip: { N: 80,  A: 2, R: 6, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, align: true,  toucherStop: false, anticipate: true,  chase: true,  spd: 1 },
   };
   const ctl = {
     N: ['pN','oN', v => v],
@@ -241,9 +256,10 @@
     P: ['pP','oP', v => v.toFixed(1) + '秒'],
     S: ['pS','oS', v => v === 180 ? '完全ランダム' : v + '°'],
     T: ['pT','oT', v => v.toFixed(1) + '秒'],
+    K: ['pK','oK', v => v + '個'],
     spd: ['pSpd','oSpd', v => v + '×'],
   };
-  const checks = { align: 'pAlign', toucherStop: 'pToucherStop' };
+  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', anticipate: 'pAnticipate', chase: 'pChase' };
 
   function applyPreset(name) {
     Object.assign(P, PRESETS[name]);
@@ -305,7 +321,7 @@
     let x, y;
     if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
     else { x = rand() * W; y = rand() * W; }
-    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [] };
+    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null };
   }
   function reset() {
     rand = mulberry32(seed); agents = [];
@@ -328,10 +344,10 @@
 
   // ---------- stats ----------
   const HIST = 240;
-  const hist = { phi: [], clu: [], touch: [] };
+  const hist = { phi: [], clu: [], grp: [], touch: [] };
   let touchWindow = [];                // per-step touch counts for the last 5 s
   let stepCount = 0;
-  function resetStats() { hist.phi = []; hist.clu = []; hist.touch = []; touchWindow = []; stepCount = 0; }
+  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; touchWindow = []; stepCount = 0; }
 
   // ---------- one simulation step ----------
   function step() {
@@ -345,7 +361,7 @@
         a.remain -= P.V;
         if (a.remain <= 0) { a.state = 1; a.remain = P.P * FPS; }
       } else if (a.state === 1) {
-        if (--a.remain <= 0) { a.h = newHeading(a.h); a.state = 0; a.remain = P.L * d2; }
+        if (--a.remain <= 0) decide(a, d2);
       } else {
         if (--a.remain <= 0) { a.h = a.hNext; a.state = 0; a.remain = P.L * d2; }
       }
@@ -392,11 +408,69 @@
     touchWindow.push(touches); if (touchWindow.length > 5 * FPS) touchWindow.shift();
     if (stepCount % 6 === 0) {
       pushHist(hist.phi, polarization());
-      pushHist(hist.clu, largestClusterFrac());
+      const cl = largestClusterFrac();
+      pushHist(hist.clu, cl.largest); pushHist(hist.grp, cl.grouped);
       pushHist(hist.touch, touchWindow.reduce((s, v) => s + v, 0));
     }
   }
   // toucher t touches victim v. Returns 1 if a new "touched" event happened.
+  // ---- deciding the next step ----
+  // 先生のルール: turn by the usual random amount and walk one step.
+  // 予期 (from 郡司's mutual-anticipation model, off by default): make K candidate destinations in the
+  // sector ahead; move to a candidate that overlaps a neighbour's candidate (the most-overlapped one);
+  // else (追尾) move into a spot a neighbour has just left; else do not move. Candidates outside the
+  // field or on top of another crab are not possible.
+  function decide(a, d2) {
+    if (!P.anticipate) { a.h = newHeading(a.h); a.state = 0; a.remain = P.L * d2; a.vacated = { x: a.x, y: a.y }; return; }
+    const range = P.L * d2, alpha = P.S * Math.PI / 180, r = P.R;
+    const cands = [];
+    for (let k = 0; k < P.K; k++) {
+      const ang = a.h + (rand() * 2 - 1) * alpha, len = d2 + rand() * Math.max(0, range - d2);
+      const x = a.x + Math.cos(ang) * len, y = a.y + Math.sin(ang) * len;
+      cands.push({ x, y, ang, len, ok: x > r && x < W - r && y > r && y < W - r && !occupied(x, y, a, d2), ov: 0 });
+    }
+    a.cands = cands;
+    const near = [];
+    for (const b of agents) {
+      if (b === a) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      if (dx * dx + dy * dy < (2 * range + d2) ** 2) near.push(b);
+    }
+    let best = 0;
+    for (const c of cands) {
+      if (!c.ok) continue;
+      for (const b of near) for (const q of b.cands) {
+        const dx = q.x - c.x, dy = q.y - c.y;
+        if (dx * dx + dy * dy < d2 * d2) c.ov++;
+      }
+      if (c.ov > best) best = c.ov;
+    }
+    let pick = null;
+    if (best > 0) {
+      const top = cands.filter(c => c.ok && c.ov === best);
+      pick = top[Math.floor(rand() * top.length)];
+    } else if (P.chase) {
+      let bd = Infinity;
+      for (const b of near) {
+        if (b.state !== 0 || !b.vacated) continue;
+        const dx = b.vacated.x - a.x, dy = b.vacated.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= d2 && d <= range && d < bd && !occupied(b.vacated.x, b.vacated.y, a, d2)) { bd = d; pick = { x: b.vacated.x, y: b.vacated.y, ang: Math.atan2(dy, dx), len: d }; }
+      }
+    }
+    // as in the book: a move needs an overlap (degree >= 2). With no overlap and no vacated spot the crab
+    // stays put, keeps its candidates on offer, and tries again after a short pause.
+    if (!pick) { a.remain = Math.max(1, P.P * FPS); return; }
+    a.vacated = { x: a.x, y: a.y };
+    a.h = (pick.ang + TAU) % TAU; a.state = 0; a.remain = pick.len;
+  }
+  function occupied(x, y, self, d2) {
+    for (const b of agents) {
+      if (b === self) continue;
+      const dx = b.x - x, dy = b.y - y;
+      if (dx * dx + dy * dy < d2 * d2) return true;
+    }
+    return false;
+  }
   // head-on: both crabs are touching each other, so (per 森山先生) both stop and go in the
   // direction of the sum of their two heading vectors. Exactly opposite headings cancel out;
   // then each simply stops and picks its next direction the usual way.
@@ -435,7 +509,9 @@
     }
     const size = new Map(); let best = 0;
     for (let i = 0; i < n; i++) { const r = find(i); const s = (size.get(r) || 0) + 1; size.set(r, s); if (s > best) best = s; }
-    return best / n;
+    let grouped = 0;
+    for (let i = 0; i < n; i++) if (size.get(find(i)) >= 3) grouped++;
+    return { largest: best / n, grouped: grouped / n };
   }
 
   // ---------- drawing ----------
@@ -540,6 +616,14 @@
       }
       ctx.restore();
     }
+    if (selected >= 0 && selected < agents.length && P.anticipate) {
+      const a = agents[selected];
+      for (const c of a.cands) {
+        ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(1.5, r * 0.35), 0, TAU);
+        ctx.fillStyle = !c.ok ? ink3 : c.ov > 0 ? css('--accent') : ink; ctx.globalAlpha = c.ok ? 0.9 : 0.35; ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
     if (selected >= 0 && selected < agents.length) {
       const a = agents[selected];
       ctx.beginPath(); ctx.arc(a.x, a.y, r * 3, 0, TAU);
@@ -579,9 +663,11 @@
     g.stroke();
   }
   function drawStats() {
-    const phi = hist.phi.at(-1) ?? 0, clu = hist.clu.at(-1) ?? 0, t = hist.touch.at(-1) ?? 0;
+    const phi = hist.phi.at(-1) ?? 0, clu = hist.clu.at(-1) ?? 0, grp = hist.grp.at(-1) ?? 0, t = hist.touch.at(-1) ?? 0;
     document.getElementById('vPhi').textContent = phi.toFixed(2);
     document.getElementById('vClu').textContent = Math.round(clu * 100) + '%';
+    document.getElementById('vGrp').textContent = Math.round(grp * 100) + '%';
+    drawSpark('cGrp', hist.grp, 1, css('--accent'));
     document.getElementById('vTouch').textContent = t;
     drawSpark('cPhi', hist.phi, 1, css('--accent'));
     drawSpark('cClu', hist.clu, 1, css('--accent'));
