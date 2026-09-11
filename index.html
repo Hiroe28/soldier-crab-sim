@@ -178,7 +178,6 @@
     <input type="range" id="pT" min="0" max="3" step="0.1">
     <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
     <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>先生のルールでは触った側は止まらない想定</small></span></label>
-    <label class="check"><input type="checkbox" id="pWrap"><span>端をつなげる（右端から出ると左端へ）<small>外すと壁で跳ね返る</small></span></label>
 
     <h2>表示</h2>
     <div class="row">
@@ -205,6 +204,7 @@
     <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
     <li><b>「ランダムに方向を変える」</b>：既定では完全にランダム（ばらつき180度）。スライダーを下げると、前の向きを少し変える程度になる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
+    <li><b>フィールドの端</b>：端に当たった個体は、それ以上進めないので止まり、いつも通りランダムに次の向きを選ぶ。端をつなげたり跳ね返したりはしない。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
 </section>
@@ -220,10 +220,10 @@
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    rule:    { N: 60,  A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
-    dense:   { N: 250, A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
-    persist: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, wrap: true, spd: 1 },
-    notouch: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, wrap: true, spd: 1 },
+    rule:    { N: 60,  A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
+    dense:   { N: 250, A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
+    persist: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, spd: 1 },
+    notouch: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, spd: 1 },
   };
   const ctl = {
     N: ['pN','oN', v => v],
@@ -236,7 +236,7 @@
     T: ['pT','oT', v => v.toFixed(1) + '秒'],
     spd: ['pSpd','oSpd', v => v + '×'],
   };
-  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', wrap: 'pWrap' };
+  const checks = { align: 'pAlign', toucherStop: 'pToucherStop' };
 
   function applyPreset(name) {
     Object.assign(P, PRESETS[name]);
@@ -327,7 +327,7 @@
 
   // ---------- one simulation step ----------
   function step() {
-    const r = P.R, d2 = 2 * r, wrap = P.wrap;
+    const r = P.R, d2 = 2 * r;
     let touches = 0;
 
     // 1. own motion
@@ -351,7 +351,6 @@
       for (let j = i + 1; j < n; j++) {
         const b = agents[j];
         let dx = b.x - a.x, dy = b.y - a.y;
-        if (wrap) { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
         const dist2 = dx * dx + dy * dy;
         if (dist2 >= d2 * d2 || dist2 === 0) continue;
         const dist = Math.sqrt(dist2);
@@ -367,14 +366,13 @@
       }
     }
 
-    // 3. boundaries
+    // 3. field edge: a crab that runs into the edge simply cannot go on, so it stops
+    //    and (as after any step) picks its next direction the usual way. No extra rule.
     for (const a of agents) {
-      if (wrap) { a.x = (a.x % W + W) % W; a.y = (a.y % W + W) % W; }
-      else {
-        if (a.x < r) { a.x = r; a.h = Math.PI - a.h; } else if (a.x > W - r) { a.x = W - r; a.h = Math.PI - a.h; }
-        if (a.y < r) { a.y = r; a.h = -a.h; } else if (a.y > W - r) { a.y = W - r; a.h = -a.h; }
-        a.h = (a.h + TAU) % TAU;
-      }
+      let blocked = false;
+      if (a.x < r) { a.x = r; blocked = true; } else if (a.x > W - r) { a.x = W - r; blocked = true; }
+      if (a.y < r) { a.y = r; blocked = true; } else if (a.y > W - r) { a.y = W - r; blocked = true; }
+      if (blocked && a.state === 0) { a.state = 1; a.remain = P.P * FPS; }
     }
 
     // 4. stats
@@ -408,7 +406,6 @@
     const link = (P.R * 2 * 1.5) ** 2;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
       let dx = agents[j].x - agents[i].x, dy = agents[j].y - agents[i].y;
-      if (P.wrap) { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
       if (dx * dx + dy * dy < link) { const a = find(i), b = find(j); if (a !== b) parent[a] = b; }
     }
     const size = new Map(); let best = 0;
@@ -462,9 +459,7 @@
         ctx.lineWidth = a.id === selected ? Math.max(2, r * 0.5) : Math.max(1, r * 0.3);
         ctx.beginPath(); ctx.moveTo(t[0], t[1]);
         for (let i = 2; i < t.length; i += 2) {
-          // break the line where the crab wrapped around the edge
-          if (Math.abs(t[i] - t[i - 2]) > W / 2 || Math.abs(t[i + 1] - t[i - 1]) > W / 2) ctx.moveTo(t[i], t[i + 1]);
-          else ctx.lineTo(t[i], t[i + 1]);
+          ctx.lineTo(t[i], t[i + 1]);
         }
         ctx.stroke();
       }
