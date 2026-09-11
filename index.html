@@ -425,11 +425,13 @@
     return dpr;
   }
   // camera helpers: the canvas shows a square window of side W / zoom centred on cam
-  function viewSide() { return W / D.zoom; }
+  // a margin of open ground is shown around the field so crabs stopped at the edge stay fully visible
+  function pad() { return P.R * 5; }
+  function viewSide() { return (W + 2 * pad()) / D.zoom; }
   function clampCam() {
-    const half = viewSide() / 2;
-    cam.x = Math.min(W - half, Math.max(half, cam.x));
-    cam.y = Math.min(W - half, Math.max(half, cam.y));
+    const half = viewSide() / 2, m = pad();
+    cam.x = Math.min(W + m - half, Math.max(half - m, cam.x));
+    cam.y = Math.min(W + m - half, Math.max(half - m, cam.y));
   }
   function drawArena() {
     fitCanvas(arena);
@@ -445,6 +447,7 @@
     ctx.beginPath();
     for (let g = 100; g < W; g += 100) { ctx.moveTo(g, 0); ctx.lineTo(g, W); ctx.moveTo(0, g); ctx.lineTo(W, g); }
     ctx.stroke();
+    ctx.strokeStyle = css('--ink-3'); ctx.lineWidth = 1.5 / s; ctx.strokeRect(0, 0, W, W);   // the field edge
     const r = P.R, ink = css('--ink'), ink3 = css('--ink-3');
     const margin = Math.max(r * 3, P.L * r * 2 + 20);
     const inView = a => a.x > vx0 - margin && a.x < vx1 + margin && a.y > vy0 - margin && a.y < vy1 + margin;
