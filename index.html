@@ -68,6 +68,8 @@
   .panel h2:first-child { margin-top: 0; }
   .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; margin: 6px 0 2px; }
   .row label { font-size: 13px; }
+  .row.stack { grid-template-columns: 1fr; }
+  .row.stack select { width: 100%; }
   .row output { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
   input[type=range] { width: 100%; margin: 0 0 6px; accent-color: var(--accent); }
   .check { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; font-size: 13px; }
@@ -142,7 +144,7 @@
       <button id="btnReset">リセット</button>
       <button id="btnShuffle">配置を変える</button>
     </div>
-    <div class="row" style="margin-top:10px">
+    <div class="row stack" style="margin-top:10px">
       <label for="preset">プリセット</label>
       <select id="preset">
         <option value="rule">先生のルール（既定）</option>
@@ -156,7 +158,7 @@
     <h2>フィールド</h2>
     <div class="row"><label for="pA">広さ（一辺、既定画面の何倍）</label><output id="oA"></output></div>
     <input type="range" id="pA" min="1" max="6" step="0.5">
-    <div class="row">
+    <div class="row stack">
       <label for="pInit">最初の配置</label>
       <select id="pInit">
         <option value="spread">全体に散らばる</option>
@@ -185,7 +187,7 @@
     <input type="range" id="pT" min="0" max="3" step="0.1">
     <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
     <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>先生のルールでは触った側は止まらない想定</small></span></label>
-    <div class="row">
+    <div class="row stack">
       <label for="pHeadon">正面からぶつかったら</label>
       <select id="pHeadon">
         <option value="merge">二匹の向きを合成（先生案）</option>
@@ -193,14 +195,14 @@
       </select>
     </div>
 
-    <h2>本（郡司モデル）から借りた要素 <small style="font-weight:400;color:var(--ink-3)">先生未確認・既定オフ</small></h2>
+    <h2>本から借りた要素（先生未確認）</h2>
     <label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する<small>止まったとき、前方の扇形（角度＝上の「ばらつき」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない</small></span></label>
     <div class="row"><label for="pK">候補の数</label><output id="oK"></output></div>
     <input type="range" id="pK" min="1" max="30" step="1">
     <label class="check"><input type="checkbox" id="pChase"><span>空いた場所に入る（追尾）<small>候補が誰とも重ならないとき、近くの個体が去った場所へ向かう</small></span></label>
 
     <h2>表示</h2>
-    <div class="row">
+    <div class="row stack">
       <label for="pColor">色の意味</label>
       <select id="pColor">
         <option value="id">個体ごとに固定</option>
