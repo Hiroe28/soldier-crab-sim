@@ -189,7 +189,7 @@
     </div>
     <label class="check"><input type="checkbox" id="pTrail" checked><span>軌跡を表示<small>直近1秒ほどの足あと</small></span></label>
     <div class="row"><label for="pZoom">拡大</label><output id="oZoom"></output></div>
-    <input type="range" id="pZoom" min="1" max="8" step="0.25" value="1.5">
+    <input type="range" id="pZoom" min="1" max="8" step="0.25" value="1">
     <label class="check"><input type="checkbox" id="pFollow" checked><span>追跡中の個体を画面の中心に<small>個体をタップすると追跡が始まる</small></span></label>
     <div class="row"><label for="pSpd">再生速度</label><output id="oSpd"></output></div>
     <input type="range" id="pSpd" min="1" max="8" step="1">
@@ -220,10 +220,10 @@
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    rule:    { N: 60,  A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
-    dense:   { N: 250, A: 3, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
-    persist: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, spd: 1 },
-    notouch: { N: 100, A: 3, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, spd: 1 },
+    rule:    { N: 50,  A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
+    dense:   { N: 200, A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, align: true,  toucherStop: false, spd: 1 },
+    persist: { N: 80,  A: 2, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: true,  toucherStop: false, spd: 1 },
+    notouch: { N: 80,  A: 2, R: 6, V: 0.6, L: 6, P: 0.3, S: 30,  T: 0.3, align: false, toucherStop: false, spd: 1 },
   };
   const ctl = {
     N: ['pN','oN', v => v],
@@ -261,7 +261,7 @@
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true, zoom: 1.5, follow: true, init: 'spread' };
+  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
@@ -520,6 +520,22 @@
       ctx.beginPath(); ctx.arc(a.x, a.y, r * 3, 0, TAU);
       ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
     }
+    // when zoomed in, an overview in the corner shows the whole field and where the window is
+    if (D.zoom > 1) {
+      const dpr = arena.width / arena.getBoundingClientRect().width;
+      const size = Math.round(arena.width * 0.22), gap = Math.round(8 * dpr);
+      const ox = arena.width - size - gap, oy = arena.height - size - gap, k = size / W;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = css('--surface'); ctx.globalAlpha = 0.85; ctx.fillRect(ox - gap / 2, oy - gap / 2, size + gap, size + gap); ctx.globalAlpha = 1;
+      ctx.fillStyle = css('--sand'); ctx.fillRect(ox, oy, size, size);
+      ctx.strokeStyle = ink3; ctx.lineWidth = 1 * dpr; ctx.strokeRect(ox, oy, size, size);
+      for (const a of agents) {
+        ctx.fillStyle = agentColor(a);
+        ctx.beginPath(); ctx.arc(ox + a.x * k, oy + a.y * k, Math.max(1, 1.2 * dpr), 0, TAU); ctx.fill();
+      }
+      ctx.strokeStyle = ink; ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeRect(ox + vx0 * k, oy + vy0 * k, view * k, view * k);
+    }
   }
   function drawSpark(id, data, max, color) {
     const c = document.getElementById(id); const dpr = fitCanvas(c);
@@ -601,7 +617,7 @@
     }
   }
 
-  setZoom(1.5);
+  setZoom(1);
   applyPreset('rule');
   requestAnimationFrame(frame);
   // small hook for scripted checks (not used by the page itself)
