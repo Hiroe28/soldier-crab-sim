@@ -195,6 +195,13 @@
         <option value="center">中央にかたまる</option>
       </select>
     </div>
+    <div class="row stack">
+      <label for="pBoundary">端の扱い</label>
+      <select id="pBoundary">
+        <option value="wall">壁：端で止まる</option>
+        <option value="wrap">つながっている：右端から出ると左端へ（周期境界）</option>
+      </select>
+    </div>
 
     <h2>個体</h2>
     <div class="row"><label for="pN">個体数</label><output id="oN"></output></div>
@@ -261,7 +268,7 @@
     <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
     <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから「ばらつき」の範囲でランダムに向きを変える。既定は40°以内。180°にすると完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
-    <li><b>フィールドの端</b>：端に当たった個体は、それ以上進めないので止まり、いつも通りランダムに次の向きを選ぶ。端をつなげたり跳ね返したりはしない。</li>
+    <li><b>フィールドの端</b>：既定の「壁」では、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。「つながっている（周期境界）」にすると、右端から出た個体は左端から現れ、端はなくなる。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
@@ -332,7 +339,7 @@
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge' };
+  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wall' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
@@ -345,6 +352,7 @@
   document.getElementById('pHeadon').addEventListener('change', e => { D.headon = e.target.value; });
   document.getElementById('pFollow').addEventListener('change', e => { D.follow = e.target.checked; });
   document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
+  document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; });
   const zoomEl = document.getElementById('pZoom');
   function setZoom(z) {
     D.zoom = Math.min(+zoomEl.max, Math.max(+zoomEl.min, z));
@@ -397,6 +405,14 @@
   let stepCount = 0;
   function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; touchWindow = []; stepCount = 0; }
 
+  // displacement from (x1,y1) to (x2,y2); with periodic boundaries the shortest image is used
+  function disp(x1, y1, x2, y2) {
+    let dx = x2 - x1, dy = y2 - y1;
+    if (D.boundary === 'wrap') { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
+    return [dx, dy];
+  }
+  function wrapXY(a) { a.x = (a.x % W + W) % W; a.y = (a.y % W + W) % W; }
+
   // ---------- one simulation step ----------
   function step() {
     const r = P.R, d2 = 2 * r;
@@ -422,7 +438,7 @@
       const a = agents[i];
       for (let j = i + 1; j < n; j++) {
         const b = agents[j];
-        let dx = b.x - a.x, dy = b.y - a.y;
+        const [dx, dy] = disp(a.x, a.y, b.x, b.y);
         const dist2 = dx * dx + dy * dy;
         if (dist2 >= d2 * d2 || dist2 === 0) continue;
         const dist = Math.sqrt(dist2);
@@ -443,7 +459,9 @@
 
     // 3. field edge: a crab that runs into the edge simply cannot go on, so it stops
     //    and (as after any step) picks its next direction the usual way. No extra rule.
+    //    With periodic boundaries the field wraps instead: leaving one side re-enters from the other.
     for (const a of agents) {
+      if (D.boundary === 'wrap') { wrapXY(a); continue; }
       let blocked = false;
       if (a.x < r) { a.x = r; blocked = true; } else if (a.x > W - r) { a.x = W - r; blocked = true; }
       if (a.y < r) { a.y = r; blocked = true; } else if (a.y > W - r) { a.y = W - r; blocked = true; }
@@ -474,21 +492,23 @@
     const cands = [];
     for (let k = 0; k < P.K; k++) {
       const ang = a.h + (rand() * 2 - 1) * alpha, len = d2 + rand() * Math.max(0, range - d2);
-      const x = a.x + Math.cos(ang) * len, y = a.y + Math.sin(ang) * len;
-      cands.push({ x, y, ang, len, ok: x > r && x < W - r && y > r && y < W - r && !occupied(x, y, a, d2), ov: 0 });
+      let x = a.x + Math.cos(ang) * len, y = a.y + Math.sin(ang) * len;
+      let inside = x > r && x < W - r && y > r && y < W - r;
+      if (D.boundary === 'wrap') { x = (x % W + W) % W; y = (y % W + W) % W; inside = true; }
+      cands.push({ x, y, ang, len, ok: inside && !occupied(x, y, a, d2), ov: 0 });
     }
     a.cands = cands;
     const near = [];
     for (const b of agents) {
       if (b === a) continue;
-      const dx = b.x - a.x, dy = b.y - a.y;
+      const [dx, dy] = disp(a.x, a.y, b.x, b.y);
       if (dx * dx + dy * dy < (2 * range + d2) ** 2) near.push(b);
     }
     let best = 0;
     for (const c of cands) {
       if (!c.ok) continue;
       for (const b of near) for (const q of b.cands) {
-        const dx = q.x - c.x, dy = q.y - c.y;
+        const [dx, dy] = disp(c.x, c.y, q.x, q.y);
         if (dx * dx + dy * dy < d2 * d2) c.ov++;
       }
       if (c.ov > best) best = c.ov;
@@ -501,7 +521,7 @@
       let bd = Infinity;
       for (const b of near) {
         if (b.state !== 0 || !b.vacated) continue;
-        const dx = b.vacated.x - a.x, dy = b.vacated.y - a.y, d = Math.hypot(dx, dy);
+        const [dx, dy] = disp(a.x, a.y, b.vacated.x, b.vacated.y), d = Math.hypot(dx, dy);
         if (d >= d2 && d <= range && d < bd && !occupied(b.vacated.x, b.vacated.y, a, d2)) { bd = d; pick = { x: b.vacated.x, y: b.vacated.y, ang: Math.atan2(dy, dx), len: d }; }
       }
     }
@@ -519,7 +539,7 @@
   function occupied(x, y, self, d2) {
     for (const b of agents) {
       if (b === self) continue;
-      const dx = b.x - x, dy = b.y - y;
+      const [dx, dy] = disp(x, y, b.x, b.y);
       if (dx * dx + dy * dy < d2 * d2) return true;
     }
     return false;
@@ -557,7 +577,7 @@
     const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
     const link = (P.R * 2 * 1.5) ** 2;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-      let dx = agents[j].x - agents[i].x, dy = agents[j].y - agents[i].y;
+      const [dx, dy] = disp(agents[i].x, agents[i].y, agents[j].x, agents[j].y);
       if (dx * dx + dy * dy < link) { const a = find(i), b = find(j); if (a !== b) parent[a] = b; }
     }
     const size = new Map(); let best = 0;
@@ -616,7 +636,8 @@
         ctx.lineWidth = a.id === selected ? Math.max(2, r * 0.5) : Math.max(1, r * 0.3);
         ctx.beginPath(); ctx.moveTo(t[0], t[1]);
         for (let i = 2; i < t.length; i += 2) {
-          ctx.lineTo(t[i], t[i + 1]);
+          if (Math.abs(t[i] - t[i - 2]) > W / 2 || Math.abs(t[i + 1] - t[i - 1]) > W / 2) ctx.moveTo(t[i], t[i + 1]);
+          else ctx.lineTo(t[i], t[i + 1]);
         }
         ctx.stroke();
       }
@@ -786,12 +807,13 @@
   const SHARE_KEYS = ['N','A','R','V','L','P','S','T','K','solo','align','toucherStop','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
-    o.init = D.init; o.headon = D.headon; return o;
+    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; return o;
   }
   function applyState(o, hint) {
     for (const k of SHARE_KEYS) if (k in o) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? (o[k] === true || o[k] === '1' || o[k] === 1) : +o[k];
     if (o.init) { D.init = o.init; document.getElementById('pInit').value = D.init; }
     if (o.headon) { D.headon = o.headon; document.getElementById('pHeadon').value = D.headon; }
+    if (o.boundary) { D.boundary = o.boundary; document.getElementById('pBoundary').value = D.boundary; }
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
     document.getElementById('presetHint').textContent = hint;
