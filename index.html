@@ -216,8 +216,15 @@
     <input type="range" id="pL" min="0.5" max="20" step="0.5">
     <div class="row"><label for="pP">止まる（食べる）時間（秒）</label><output id="oP"></output></div>
     <input type="range" id="pP" min="0" max="3" step="0.1">
-    <div class="row"><label for="pS">向きの変え方（ばらつき、度）</label><output id="oS"></output></div>
+    <div class="row"><label for="pS">向きの変え方（度）</label><output id="oS"></output></div>
     <input type="range" id="pS" min="0" max="180" step="5">
+    <div class="row stack">
+      <label for="pTurn">角度の意味</label>
+      <select id="pTurn">
+        <option value="uniform">±角度の範囲で一様にランダム</option>
+        <option value="normal">角度を標準偏差とする正規分布</option>
+      </select>
+    </div>
 
     <details class="group"><summary>「触られたら」</summary>
     <div class="row"><label for="pT">触られて止まる時間（秒）</label><output id="oT"></output></div>
@@ -260,13 +267,43 @@
   </aside>
 </main>
 
+<section class="notes" id="expSection">
+  <h2>比較実験</h2>
+  <p style="margin:0 0 8px">いまの設定で、乱数の種を変えて何回か走らせ、最後の30秒の平均を表に足します。設定を変えてまた実行すると行が増えるので、条件どうしを比べられます。</p>
+  <div class="btns" style="align-items:center">
+    <input id="expName" placeholder="行の名前（省略可）" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);width:14em">
+    <label style="font-size:13px">試行 <input id="expTrials" type="number" min="1" max="30" value="5" style="width:4em;font:inherit;font-size:13px;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)"> 回</label>
+    <label style="font-size:13px">各 <input id="expSecs" type="number" min="30" max="600" step="10" value="120" style="width:5em;font:inherit;font-size:13px;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)"> 秒</label>
+    <button class="primary" id="btnExp">いまの設定で実験</button>
+    <button id="btnExpCancel" hidden>中止</button>
+    <button id="btnExpCopy">表をコピー</button>
+    <button id="btnExpClear">表を消す</button>
+    <span id="expStatus" style="font-size:13px;color:var(--ink-2)"></span>
+  </div>
+  <div style="overflow-x:auto;margin-top:10px">
+    <table id="expTable" style="border-collapse:collapse;font-size:13px;min-width:700px">
+      <thead><tr style="color:var(--ink-2);text-align:left">
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">名前</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">条件</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">試行</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">3匹以上の群れ</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">最大の群れ</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">整列度</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">接触/5秒</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="hint" style="margin-top:4px">値は「平均 ± 標準偏差」（試行間）。乱数の種は 1001 から順に使うので、同じ条件なら同じ結果になります。</div>
+  </div>
+</section>
+
 <section class="notes">
   <h2>細かいルール（詳しく知りたい人向け）</h2>
   <ol>
     <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
     <li><b>両方が動いていて正面からぶつかった場合</b>：二匹とも止まり、二匹の進行方向ベクトルを合成した向きに進む。ちょうど真逆でぶつかって合成がゼロになるときは、止まっていつも通り次の向きを選ぶ。比較用に「向きを交換」も選べる。</li>
     <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
-    <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから「ばらつき」の範囲でランダムに向きを変える。既定は40°以内。180°にすると完全にランダムになる。</li>
+    <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから左右に、指定した角度の範囲で一様にランダムな角度だけ向きを変える（既定は±40°）。「角度の意味」で、指定角度を標準偏差とする正規分布にも切り替えられる。180°にするとどちらも完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：既定の「壁」では、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。「つながっている（周期境界）」にすると、右端から出た個体は左端から現れ、端はなくなる。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
@@ -298,7 +335,7 @@
     V: ['pV','oV', v => v.toFixed(1)],
     L: ['pL','oL', v => v.toFixed(1) + '倍'],
     P: ['pP','oP', v => v.toFixed(1) + '秒'],
-    S: ['pS','oS', v => v === 180 ? '完全ランダム' : v + '°'],
+    S: ['pS','oS', v => v === 180 ? '完全ランダム' : '±' + v + '°'],
     T: ['pT','oT', v => v.toFixed(1) + '秒'],
     K: ['pK','oK', v => v + '個'],
     solo: ['pSolo','oSolo', v => Math.round(v * 100) + '%'],
@@ -339,7 +376,7 @@
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wall' };
+  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wall', turn: 'uniform' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
@@ -353,6 +390,7 @@
   document.getElementById('pFollow').addEventListener('change', e => { D.follow = e.target.checked; });
   document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
   document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; });
+  document.getElementById('pTurn').addEventListener('change', e => { D.turn = e.target.value; });
   const zoomEl = document.getElementById('pZoom');
   function setZoom(z) {
     D.zoom = Math.min(+zoomEl.max, Math.max(+zoomEl.min, z));
@@ -393,9 +431,11 @@
     if (D.color === 'heading') return `hsl(${a.h * 180 / Math.PI} 65% 50%)`;
     return `hsl(${(a.id * 137.508) % 360} 60% ${48 + (a.id % 3) * 6}%)`;
   }
+  // turn at a stop: by default a uniform random angle in [-S, +S]; optionally normal with SD = S
   function newHeading(h) {
     if (P.S >= 180) return rand() * TAU;
-    return (h + gauss() * P.S * Math.PI / 180 + TAU) % TAU;
+    const d = D.turn === 'normal' ? gauss() * P.S : (rand() * 2 - 1) * P.S;
+    return (h + d * Math.PI / 180 + TAU) % TAU;
   }
 
   // ---------- stats ----------
@@ -748,6 +788,77 @@
     drawSpark('cTouch', hist.touch, 0, css('--accent-2'));
   }
 
+  // ---------- comparison experiments: run the current setting for several seeds, no drawing ----------
+  const EXP = { rows: [], cancel: false };
+  const expEl = id => document.getElementById(id);
+  function summarizeCondition() {
+    let c = `${P.N}匹 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}`;
+    if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
+    return c;
+  }
+  function meanSd(arr) {
+    const n = arr.length, m = arr.reduce((s, v) => s + v, 0) / n;
+    const sd = n > 1 ? Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1)) : 0;
+    return [m, sd];
+  }
+  async function runExperiment() {
+    const trials = Math.max(1, Math.min(30, +expEl('expTrials').value || 5));
+    const secs = Math.max(30, Math.min(600, +expEl('expSecs').value || 120));
+    const name = expEl('expName').value.trim() || ('条件' + (EXP.rows.length + 1));
+    const saved = { agents, seed, rand, hist: { ...hist }, touchWindow, stepCount, selected, running };
+    running = false; EXP.cancel = false;
+    expEl('btnExp').disabled = true; expEl('btnExpCancel').hidden = false;
+    const total = secs * FPS, windowStart = Math.max(0, total - 30 * FPS);
+    const per = [];
+    for (let t = 1; t <= trials && !EXP.cancel; t++) {
+      seed = 1000 + t; reset();
+      const acc = { grp: 0, clu: 0, phi: 0, touch: 0, n: 0 };
+      for (let k = 0; k < total && !EXP.cancel;) {
+        const chunkEnd = Math.min(total, k + 90);
+        for (; k < chunkEnd; k++) {
+          step();
+          if (k >= windowStart && k % 6 === 0) {
+            const c = largestClusterFrac();
+            acc.grp += c.grouped; acc.clu += c.largest; acc.phi += polarization();
+            acc.touch += touchWindow.reduce((s2, v) => s2 + v, 0); acc.n++;
+          }
+        }
+        expEl('expStatus').textContent = `実験中 ${t}/${trials} 回目（${Math.round(k / total * 100)}%）`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+      if (!EXP.cancel && acc.n) per.push({ grp: acc.grp / acc.n, clu: acc.clu / acc.n, phi: acc.phi / acc.n, touch: acc.touch / acc.n });
+    }
+    agents = saved.agents; seed = saved.seed; rand = saved.rand; Object.assign(hist, saved.hist);
+    touchWindow = saved.touchWindow; stepCount = saved.stepCount; selected = saved.selected; running = saved.running;
+    expEl('btnExp').disabled = false; expEl('btnExpCancel').hidden = true;
+    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per }); renderExp(); }
+    expEl('expStatus').textContent = EXP.cancel ? '中止しました' : `完了（${per.length}回 × ${secs}秒）`;
+  }
+  function fmtPct(arr) { const [m, sd] = meanSd(arr); return `${(m * 100).toFixed(1)} ± ${(sd * 100).toFixed(1)}%`; }
+  function fmtNum(arr, d) { const [m, sd] = meanSd(arr); return `${m.toFixed(d)} ± ${sd.toFixed(d)}`; }
+  function rowCells(r) {
+    return [r.name, r.cond, `${r.trials}×${r.secs}秒`,
+      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0)];
+  }
+  function renderExp() {
+    const tb = expEl('expTable').querySelector('tbody'); tb.innerHTML = '';
+    for (const r of EXP.rows) {
+      const tr = document.createElement('tr');
+      for (const c of rowCells(r)) { const td = document.createElement('td'); td.textContent = c; td.style.cssText = 'padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums'; tr.appendChild(td); }
+      tb.appendChild(tr);
+    }
+  }
+  expEl('btnExp').addEventListener('click', runExperiment);
+  expEl('btnExpCancel').addEventListener('click', () => { EXP.cancel = true; });
+  expEl('btnExpClear').addEventListener('click', () => { if (!EXP.rows.length || confirm('表を消しますか')) { EXP.rows = []; renderExp(); } });
+  expEl('btnExpCopy').addEventListener('click', async e => {
+    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒'];
+    const tsv = [head, ...EXP.rows.map(rowCells)].map(r => r.join('\t')).join('\n');
+    try { await navigator.clipboard.writeText(tsv); e.target.textContent = 'コピーしました'; }
+    catch { window.prompt('コピーしてください', tsv); }
+    setTimeout(() => { e.target.textContent = '表をコピー'; }, 1500);
+  });
+
   // ---------- loop ----------
   let running = true;
   function frame() {
@@ -807,13 +918,14 @@
   const SHARE_KEYS = ['N','A','R','V','L','P','S','T','K','solo','align','toucherStop','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
-    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; return o;
+    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; return o;
   }
   function applyState(o, hint) {
     for (const k of SHARE_KEYS) if (k in o) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? (o[k] === true || o[k] === '1' || o[k] === 1) : +o[k];
     if (o.init) { D.init = o.init; document.getElementById('pInit').value = D.init; }
     if (o.headon) { D.headon = o.headon; document.getElementById('pHeadon').value = D.headon; }
     if (o.boundary) { D.boundary = o.boundary; document.getElementById('pBoundary').value = D.boundary; }
+    if (o.turn) { D.turn = o.turn; document.getElementById('pTurn').value = D.turn; }
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
     document.getElementById('presetHint').textContent = hint;
