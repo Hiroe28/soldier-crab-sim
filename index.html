@@ -160,6 +160,17 @@
       </select>
       <div class="hint" id="presetHint" style="margin-top:4px"></div>
     </div>
+    <div class="row stack">
+      <label for="savedList">保存した設定（このブラウザ内）</label>
+      <div id="savedRow" hidden>
+        <select id="savedList" style="width:100%"></select>
+        <div class="btns" style="margin-top:6px">
+          <button id="btnLoad">読み込む</button>
+          <button id="btnDelete">削除</button>
+        </div>
+      </div>
+      <div class="btns" style="margin-top:6px"><button id="btnSave">いまの設定を保存</button></div>
+    </div>
 
     <h2>フィールド</h2>
     <div class="row"><label for="pA">広さ（一辺、既定画面の何倍）</label><output id="oA"></output></div>
@@ -754,28 +765,30 @@
   }
 
   // small hook for scripted checks (not used by the page itself)
-  // ---- sharing a setting as a URL (#N=300&A=2&...) ----
+  // ---- a "setting" = the slider values + placement + head-on rule, as a plain object ----
   const SHARE_KEYS = ['N','A','R','V','L','P','S','T','K','solo','align','toucherStop','anticipate','chase','spd'];
-  function stateToUrl() {
-    const q = SHARE_KEYS.map(k => k + '=' + (typeof P[k] === 'boolean' ? (P[k] ? 1 : 0) : P[k]));
-    q.push('init=' + D.init, 'headon=' + D.headon);
-    return location.href.split('#')[0] + '#' + q.join('&');
+  function currentState() {
+    const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
+    o.init = D.init; o.headon = D.headon; return o;
   }
-  let urlState = null;
-  function stateFromUrl() {
-    const h = location.hash.slice(1); if (!h.includes('=')) return null;
-    urlState = Object.fromEntries(h.split('&').map(kv => kv.split('=')));
-    return 'tidal1';
-  }
-  function applyUrlState() {
-    if (!urlState) return;
-    for (const k of SHARE_KEYS) if (k in urlState) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? urlState[k] === '1' : +urlState[k];
-    if (urlState.init) { D.init = urlState.init; document.getElementById('pInit').value = D.init; }
-    if (urlState.headon) { D.headon = urlState.headon; document.getElementById('pHeadon').value = D.headon; }
+  function applyState(o, hint) {
+    for (const k of SHARE_KEYS) if (k in o) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? (o[k] === true || o[k] === '1' || o[k] === 1) : +o[k];
+    if (o.init) { D.init = o.init; document.getElementById('pInit').value = D.init; }
+    if (o.headon) { D.headon = o.headon; document.getElementById('pHeadon').value = D.headon; }
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
-    document.getElementById('presetHint').textContent = 'リンクで共有された設定';
-    refreshOutputs(); W = BASE * P.A; reset(); urlState = null;
+    document.getElementById('presetHint').textContent = hint;
+    refreshOutputs(); W = BASE * P.A; reset();
+  }
+  // sharing as a URL (#N=300&A=2&...)
+  function stateToUrl() {
+    const o = currentState();
+    const q = Object.keys(o).map(k => k + '=' + (typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : o[k]));
+    return location.href.split('#')[0] + '#' + q.join('&');
+  }
+  function stateFromUrl() {
+    const h = location.hash.slice(1); if (!h.includes('=')) return null;
+    return Object.fromEntries(h.split('&').map(kv => kv.split('=')));
   }
   document.getElementById('btnShare').addEventListener('click', async e => {
     const url = stateToUrl(); history.replaceState(null, '', url);
@@ -783,9 +796,39 @@
     catch { window.prompt('このリンクをコピーしてください', url); }
     setTimeout(() => { e.target.textContent = 'この設定のリンクをコピー'; }, 1500);
   });
+  // saving in this browser (localStorage). Wrapped in try/catch: storage can be unavailable.
+  const SAVE_KEY = 'crabSim.savedSettings';
+  function loadSaved() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); } catch { return {}; } }
+  function storeSaved(all) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(all)); return true; } catch { return false; } }
+  const savedSel = document.getElementById('savedList');
+  function refreshSavedList(select) {
+    const all = loadSaved(), names = Object.keys(all);
+    savedSel.innerHTML = '';
+    for (const n of names) { const op = document.createElement('option'); op.textContent = n; savedSel.appendChild(op); }
+    if (select) savedSel.value = select;
+    document.getElementById('savedRow').hidden = names.length === 0;
+  }
+  document.getElementById('btnSave').addEventListener('click', () => {
+    const all = loadSaved();
+    const name = window.prompt('この設定の名前', savedSel.value || ('設定 ' + (Object.keys(all).length + 1)));
+    if (!name) return;
+    all[name] = currentState();
+    if (!storeSaved(all)) { alert('このブラウザでは保存できませんでした'); return; }
+    refreshSavedList(name);
+  });
+  document.getElementById('btnLoad').addEventListener('click', () => {
+    const all = loadSaved(), name = savedSel.value;
+    if (all[name]) applyState(all[name], '保存した設定「' + name + '」');
+  });
+  document.getElementById('btnDelete').addEventListener('click', () => {
+    const all = loadSaved(), name = savedSel.value;
+    if (!all[name] || !window.confirm('「' + name + '」を削除しますか')) return;
+    delete all[name]; storeSaved(all); refreshSavedList();
+  });
+  refreshSavedList();
   setZoom(1);
-  applyPreset(stateFromUrl() || 'tidal1');
-  applyUrlState();
+  applyPreset('tidal1');
+  const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P };
 })();
