@@ -67,6 +67,19 @@
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
   .panel h2 { font-size: 13px; margin: 14px 0 6px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
   .panel h2:first-child { margin-top: 0; }
+  @media (min-width: 801px) {
+    /* the field stays on screen while the (longer) settings column scrolls with the page */
+    .stage { position: sticky; top: 10px; }
+    canvas#arena { width: min(100%, calc(100vh - 250px)); min-width: 320px; margin: 0 auto; }
+  }
+  details.group { margin-top: 12px; }
+  details.group summary {
+    font-size: 13px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; cursor: pointer;
+    list-style: none; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  }
+  details.group summary::-webkit-details-marker { display: none; }
+  details.group summary::before { content: '▸'; font-size: 11px; color: var(--ink-3); }
+  details.group[open] summary::before { content: '▾'; }
   .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; margin: 6px 0 2px; }
   .row label { font-size: 13px; }
   .row.stack { grid-template-columns: 1fr; }
@@ -199,7 +212,7 @@
     <div class="row"><label for="pS">向きの変え方（ばらつき、度）</label><output id="oS"></output></div>
     <input type="range" id="pS" min="0" max="180" step="5">
 
-    <h2>「触られたら」</h2>
+    <details class="group"><summary>「触られたら」</summary>
     <div class="row"><label for="pT">触られて止まる時間（秒）</label><output id="oT"></output></div>
     <input type="range" id="pT" min="0" max="3" step="0.1">
     <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
@@ -212,7 +225,8 @@
       </select>
     </div>
 
-    <h2>一歩先の予期</h2>
+    </details>
+    <details class="group" id="grpAnticipate"><summary>一歩先の予期</summary>
     <label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する<small>止まったとき、前方の扇形（角度＝上の「ばらつき」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない</small></span></label>
     <div class="row"><label for="pK">候補の数</label><output id="oK"></output></div>
     <input type="range" id="pK" min="1" max="30" step="1">
@@ -220,7 +234,8 @@
     <div class="row"><label for="pSolo">仲間と重ならなくても進む確率</label><output id="oSolo"></output></div>
     <input type="range" id="pSolo" min="0" max="1" step="0.05">
 
-    <h2>表示</h2>
+    </details>
+    <details class="group"><summary>表示</summary>
     <div class="row stack">
       <label for="pColor">色の意味</label>
       <select id="pColor">
@@ -234,6 +249,7 @@
     <label class="check"><input type="checkbox" id="pFollow" checked><span>追跡中の個体を画面の中心に<small>個体をタップすると追跡が始まる</small></span></label>
     <div class="row"><label for="pSpd">再生速度</label><output id="oSpd"></output></div>
     <input type="range" id="pSpd" min="1" max="8" step="1">
+    </details>
   </aside>
 </main>
 
@@ -293,6 +309,7 @@
   function applyPreset(name) {
     Object.assign(P, PRESETS[name]);
     if (P.init) { D.init = P.init; document.getElementById('pInit').value = P.init; }
+    if (P.anticipate) document.getElementById('grpAnticipate').open = true;
     document.getElementById('presetHint').textContent = PRESET_HINT[name] || '';
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
