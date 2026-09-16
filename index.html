@@ -231,6 +231,7 @@
     <input type="range" id="pT" min="0" max="3" step="0.1">
     <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
     <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>既定では触った側は止まらない</small></span></label>
+    <label class="check"><input type="checkbox" id="pHistory"><span>触れられた回数で重みづけ（履歴）<small>向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから合成する。多く触れられた個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり</small></span></label>
     <div class="row stack">
       <label for="pHeadon">正面からぶつかったら</label>
       <select id="pHeadon">
@@ -303,6 +304,7 @@
     <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
     <li><b>両方が動いていて正面からぶつかった場合</b>：二匹とも止まり、二匹の進行方向ベクトルを合成した向きに進む。ちょうど真逆でぶつかって合成がゼロになるときは、止まっていつも通り次の向きを選ぶ。比較用に「向きを交換」も選べる。</li>
     <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
+    <li><b>履歴（任意）</b>：「触れられた回数で重みづけ」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は減らない。</li>
     <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから左右に、指定した角度の範囲で一様にランダムな角度だけ向きを変える（既定は±40°）。「角度の意味」で、指定角度を標準偏差とする正規分布にも切り替えられる。180°にするとどちらも完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：既定の「壁」では、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。「つながっている（周期境界）」にすると、右端から出た個体は左端から現れ、端はなくなる。</li>
@@ -322,11 +324,11 @@
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    tidal1:  { N: 300, A: 2, R: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, anticipate: false, chase: false, spd: 1, init: 'center' },
-    tidal2:  { N: 300, A: 2, R: 6, V: 0.6, L: 3, P: 1.0, S: 30,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
-    rule:    { N: 50,  A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
-    notouch: { N: 300, A: 2, R: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: false, toucherStop: false, anticipate: false, chase: false, spd: 1, init: 'center' },
-    anticip: { N: 80,  A: 2, R: 6, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, solo: 0.2, align: true,  toucherStop: false, anticipate: true,  chase: true,  spd: 1, init: 'spread' },
+    tidal1:  { N: 300, A: 2, R: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
+    tidal2:  { N: 300, A: 2, R: 6, V: 0.6, L: 3, P: 1.0, S: 30,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    rule:    { N: 50,  A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    notouch: { N: 300, A: 2, R: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: false, toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
+    anticip: { N: 80,  A: 2, R: 6, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, solo: 0.2, align: true,  toucherStop: false, history: false, anticipate: true,  chase: true,  spd: 1, init: 'spread' },
   };
   const ctl = {
     N: ['pN','oN', v => v],
@@ -341,7 +343,7 @@
     solo: ['pSolo','oSolo', v => Math.round(v * 100) + '%'],
     spd: ['pSpd','oSpd', v => v + '×'],
   };
-  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', anticipate: 'pAnticipate', chase: 'pChase' };
+  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', history: 'pHistory', anticipate: 'pAnticipate', chase: 'pChase' };
 
   const PRESET_HINT = {
     tidal1: '中央にかたまった300匹が広がっていく。少し進んで止まり、向きを40°ほど変えて、また進む。触れられたら止まり、相手の向きに進む。小さな群れが次々にできる。',
@@ -415,7 +417,7 @@
     let x, y;
     if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
     else { x = rand() * W; y = rand() * W; }
-    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null };
+    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0 };
   }
   function reset() {
     rand = mulberry32(seed); agents = [];
@@ -587,21 +589,37 @@
   // head-on: both crabs are touching each other, so both stop and go in the
   // direction of the sum of their two heading vectors. Exactly opposite headings cancel out;
   // then each simply stops and picks its next direction the usual way.
+  // 履歴: weights for merging two headings = how often each crab has been touched so far.
+  // Returns null when the weighted sum is undefined (both 0) so the caller falls back to the plain rule.
+  function historyWeights(a, b) {
+    if (!P.history) return null;
+    const wa = a.touched || 0, wb = b.touched || 0;
+    return wa + wb > 0 ? [wa, wb] : null;
+  }
+  // direction of wa*(unit a.h) + wb*(unit b.h); null if it cancels out
+  function mergeHeading(ha, hb, wa, wb) {
+    const sx = wa * Math.cos(ha) + wb * Math.cos(hb), sy = wa * Math.sin(ha) + wb * Math.sin(hb);
+    return Math.hypot(sx, sy) < 1e-6 ? null : (Math.atan2(sy, sx) + TAU) % TAU;
+  }
   function headOn(a, b) {
     if (a.state === 2 || b.state === 2) return (a.state !== 2 ? touch(b, a) : 0) + (b.state !== 2 ? touch(a, b) : 0);
-    const sx = Math.cos(a.h) + Math.cos(b.h), sy = Math.sin(a.h) + Math.sin(b.h);
-    const cancelled = Math.hypot(sx, sy) < 1e-6;
-    const h = cancelled ? null : Math.atan2(sy, sx);
+    const w = historyWeights(a, b) || [1, 1];
+    const h = mergeHeading(a.h, b.h, w[0], w[1]);
     for (const c of [a, b]) {
       c.state = 2; c.remain = Math.max(1, P.T * FPS); c.flash = 12;
-      c.hNext = P.align ? (cancelled ? newHeading(c.h) : (h + TAU) % TAU) : c.h;
+      c.hNext = P.align ? (h === null ? newHeading(c.h) : h) : c.h;
     }
+    a.touched++; b.touched++;
     return 2;
   }
   function touch(t, v) {
     if (v.state === 2) return 0;               // already reacting to an earlier touch
     v.state = 2; v.remain = Math.max(1, P.T * FPS); v.flash = 12;
-    v.hNext = P.align ? t.h : v.h;
+    let h = t.h;
+    const w = historyWeights(v, t);
+    if (w) { const m = mergeHeading(v.h, t.h, w[0], w[1]); h = m === null ? newHeading(v.h) : m; }
+    v.hNext = P.align ? h : v.h;
+    v.touched++;
     if (P.toucherStop && t.state === 0) { t.state = 2; t.remain = Math.max(1, P.T * FPS); t.hNext = t.h; }
     return 1;
   }
@@ -792,7 +810,7 @@
   const EXP = { rows: [], cancel: false };
   const expEl = id => document.getElementById(id);
   function summarizeCondition() {
-    let c = `${P.N}匹 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}`;
+    let c = `${P.N}匹 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
     if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
     return c;
   }
@@ -915,7 +933,7 @@
 
   // small hook for scripted checks (not used by the page itself)
   // ---- a "setting" = the slider values + placement + head-on rule, as a plain object ----
-  const SHARE_KEYS = ['N','A','R','V','L','P','S','T','K','solo','align','toucherStop','anticipate','chase','spd'];
+  const SHARE_KEYS = ['N','A','R','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
     o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; return o;
