@@ -231,7 +231,7 @@
     <input type="range" id="pT" min="0" max="3" step="0.1">
     <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
     <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>既定では触った側は止まらない</small></span></label>
-    <label class="check"><input type="checkbox" id="pHistory"><span>触れられた回数で重みづけ（履歴）<small>向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから合成する。多く触れられた個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり</small></span></label>
+    <label class="check"><input type="checkbox" id="pHistory"><span>触れられた回数で重みづけ（履歴）<small>向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから合成する。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。混みあって接触が続く個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり</small></span></label>
     <div class="row stack">
       <label for="pHeadon">正面からぶつかったら</label>
       <select id="pHeadon">
@@ -304,7 +304,7 @@
     <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
     <li><b>両方が動いていて正面からぶつかった場合</b>：二匹とも止まり、二匹の進行方向ベクトルを合成した向きに進む。ちょうど真逆でぶつかって合成がゼロになるときは、止まっていつも通り次の向きを選ぶ。比較用に「向きを交換」も選べる。</li>
     <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
-    <li><b>履歴（任意）</b>：「触れられた回数で重みづけ」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は減らない。</li>
+    <li><b>履歴（任意）</b>：「触れられた回数で重みづけ」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。</li>
     <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから左右に、指定した角度の範囲で一様にランダムな角度だけ向きを変える（既定は±40°）。「角度の意味」で、指定角度を標準偏差とする正規分布にも切り替えられる。180°にするとどちらも完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：既定の「壁」では、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。「つながっている（周期境界）」にすると、右端から出た個体は左端から現れ、端はなくなる。</li>
@@ -417,7 +417,7 @@
     let x, y;
     if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
     else { x = rand() * W; y = rand() * W; }
-    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0 };
+    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false };
   }
   function reset() {
     rand = mulberry32(seed); agents = [];
@@ -528,7 +528,11 @@
   // sector ahead; move to a candidate that overlaps a neighbour's candidate (the most-overlapped one);
   // else (追尾) move into a spot a neighbour has just left; else do not move. Candidates outside the
   // field or on top of another crab are not possible.
+  // a crab deciding its next step on its own: if it has not been touched since its last own decision,
+  // the run of consecutive touches is over and the 履歴 count resets
   function decide(a, d2) {
+    if (!a.touchedLately) a.touched = 0;
+    a.touchedLately = false;
     if (!P.anticipate) { a.h = newHeading(a.h); a.state = 0; a.remain = P.L * d2; a.vacated = { x: a.x, y: a.y }; return; }
     const range = P.L * d2, alpha = P.S * Math.PI / 180, r = P.R;
     const cands = [];
@@ -609,7 +613,7 @@
       c.state = 2; c.remain = Math.max(1, P.T * FPS); c.flash = 12;
       c.hNext = P.align ? (h === null ? newHeading(c.h) : h) : c.h;
     }
-    a.touched++; b.touched++;
+    a.touched++; b.touched++; a.touchedLately = b.touchedLately = true;
     return 2;
   }
   function touch(t, v) {
@@ -619,7 +623,7 @@
     const w = historyWeights(v, t);
     if (w) { const m = mergeHeading(v.h, t.h, w[0], w[1]); h = m === null ? newHeading(v.h) : m; }
     v.hNext = P.align ? h : v.h;
-    v.touched++;
+    v.touched++; v.touchedLately = true;
     if (P.toucherStop && t.state === 0) { t.state = 2; t.remain = Math.max(1, P.T * FPS); t.hNext = t.h; }
     return 1;
   }
