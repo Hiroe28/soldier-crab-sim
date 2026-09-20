@@ -206,8 +206,10 @@
     <h2>個体</h2>
     <div class="row"><label for="pN">個体数</label><output id="oN"></output></div>
     <input type="range" id="pN" min="2" max="400" step="1">
-    <div class="row"><label for="pR">体の大きさ</label><output id="oR"></output></div>
+    <div class="row"><label for="pR">体の大きさ（最大）</label><output id="oR"></output></div>
     <input type="range" id="pR" min="3" max="14" step="1">
+    <div class="row"><label for="pRV">大きさのばらつき（最大との差）</label><output id="oRV"></output></div>
+    <input type="range" id="pRV" min="0" max="6" step="1">
     <div class="row"><label for="pV">歩く速さ</label><output id="oV"></output></div>
     <input type="range" id="pV" min="0.3" max="4" step="0.1">
 
@@ -309,6 +311,7 @@
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
+    <li><b>体の大きさ</b>：「大きさのばらつき」が0なら全員「体の大きさ」の半径。0より大きいと、各個体の半径を「最大−ばらつき」から「最大」までの一様乱数で決める（例：最大14、ばらつき3で11〜14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
 </section>
@@ -324,16 +327,17 @@
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    tidal1:  { N: 300, A: 2, R: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
-    tidal2:  { N: 300, A: 2, R: 6, V: 0.6, L: 3, P: 1.0, S: 30,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
-    rule:    { N: 50,  A: 2, R: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
-    notouch: { N: 300, A: 2, R: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: false, toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
-    anticip: { N: 80,  A: 2, R: 6, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, solo: 0.2, align: true,  toucherStop: false, history: false, anticipate: true,  chase: true,  spd: 1, init: 'spread' },
+    tidal1:  { N: 300, A: 2, R: 6, RV: 0, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
+    tidal2:  { N: 300, A: 2, R: 6, RV: 0, V: 0.6, L: 3, P: 1.0, S: 30,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    rule:    { N: 50,  A: 2, R: 6, RV: 0, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    notouch: { N: 300, A: 2, R: 6, RV: 0, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: false, toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
+    anticip: { N: 80,  A: 2, R: 6, RV: 0, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, solo: 0.2, align: true,  toucherStop: false, history: false, anticipate: true,  chase: true,  spd: 1, init: 'spread' },
   };
   const ctl = {
     N: ['pN','oN', v => v],
     A: ['pA','oA', v => v + '倍'],
     R: ['pR','oR', v => v],
+    RV: ['pRV','oRV', v => v === 0 ? '全員同じ' : (P.R - v) + '〜' + P.R],
     V: ['pV','oV', v => v.toFixed(1)],
     L: ['pL','oL', v => v.toFixed(1) + '倍'],
     P: ['pP','oP', v => v.toFixed(1) + '秒'],
@@ -370,7 +374,7 @@
     const [id] = ctl[k];
     document.getElementById(id).addEventListener('input', e => {
       P[k] = +e.target.value; refreshOutputs();
-      if (k === 'N' || k === 'R') resizeAgents();
+      if (k === 'N' || k === 'R' || k === 'RV') { resizeAgents(); if (k !== 'N') { for (const a of agents) a.r = randomRadius(); refreshOutputs(); } }
       if (k === 'A') { W = BASE * P.A; reset(); }
     });
   }
@@ -412,12 +416,14 @@
   // state: 0 = moving, 1 = paused (voluntary), 2 = touched (waiting to adopt heading)
   let agents = [];
   const TRAIL = 30;                    // samples kept per crab (one sample every 2 steps)
+  // each crab's own body radius: uniform in [R - RV, R]
+  function randomRadius() { return P.R - rand() * P.RV; }
   function makeAgent(i) {
     const h = rand() * TAU;
     let x, y;
     if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
     else { x = rand() * W; y = rand() * W; }
-    return { id: i, x, y, h, hNext: h, state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false };
+    return { id: i, x, y, h, hNext: h, r: randomRadius(), state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false };
   }
   function reset() {
     rand = mulberry32(seed); agents = [];
@@ -457,7 +463,6 @@
 
   // ---------- one simulation step ----------
   function step() {
-    const r = P.R, d2 = 2 * r;
     let touches = 0;
 
     // 1. own motion
@@ -467,9 +472,9 @@
         a.remain -= P.V;
         if (a.remain <= 0) { a.state = 1; a.remain = P.P * FPS; }
       } else if (a.state === 1) {
-        if (--a.remain <= 0) decide(a, d2);
+        if (--a.remain <= 0) decide(a, 2 * a.r);
       } else {
-        if (--a.remain <= 0) { a.h = a.hNext; a.state = 0; a.remain = P.L * d2; }
+        if (--a.remain <= 0) { a.h = a.hNext; a.state = 0; a.remain = P.L * 2 * a.r; }
       }
       if (a.flash > 0) a.flash--;
     }
@@ -481,7 +486,7 @@
       for (let j = i + 1; j < n; j++) {
         const b = agents[j];
         const [dx, dy] = disp(a.x, a.y, b.x, b.y);
-        const dist2 = dx * dx + dy * dy;
+        const dist2 = dx * dx + dy * dy, d2 = a.r + b.r;          // bodies touch when closer than the two radii
         if (dist2 >= d2 * d2 || dist2 === 0) continue;
         const dist = Math.sqrt(dist2);
 
@@ -504,7 +509,7 @@
     //    With periodic boundaries the field wraps instead: leaving one side re-enters from the other.
     for (const a of agents) {
       if (D.boundary === 'wrap') { wrapXY(a); continue; }
-      let blocked = false;
+      const r = a.r; let blocked = false;
       if (a.x < r) { a.x = r; blocked = true; } else if (a.x > W - r) { a.x = W - r; blocked = true; }
       if (a.y < r) { a.y = r; blocked = true; } else if (a.y > W - r) { a.y = W - r; blocked = true; }
       if (blocked && a.state === 0) { a.state = 1; a.remain = P.P * FPS; }
@@ -534,7 +539,7 @@
     if (!a.touchedLately) a.touched = 0;
     a.touchedLately = false;
     if (!P.anticipate) { a.h = newHeading(a.h); a.state = 0; a.remain = P.L * d2; a.vacated = { x: a.x, y: a.y }; return; }
-    const range = P.L * d2, alpha = P.S * Math.PI / 180, r = P.R;
+    const range = P.L * d2, alpha = P.S * Math.PI / 180, r = a.r;
     const cands = [];
     for (let k = 0; k < P.K; k++) {
       const ang = a.h + (rand() * 2 - 1) * alpha, len = d2 + rand() * Math.max(0, range - d2);
@@ -585,8 +590,8 @@
   function occupied(x, y, self, d2) {
     for (const b of agents) {
       if (b === self) continue;
-      const [dx, dy] = disp(x, y, b.x, b.y);
-      if (dx * dx + dy * dy < d2 * d2) return true;
+      const [dx, dy] = disp(x, y, b.x, b.y), lim = self.r + b.r;
+      if (dx * dx + dy * dy < lim * lim) return true;
     }
     return false;
   }
@@ -637,9 +642,9 @@
     const n = agents.length; if (!n) return 0;
     const parent = Array.from({ length: n }, (_, i) => i);
     const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
-    const link = (P.R * 2 * 1.5) ** 2;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
       const [dx, dy] = disp(agents[i].x, agents[i].y, agents[j].x, agents[j].y);
+      const link = ((agents[i].r + agents[j].r) * 1.5) ** 2;
       if (dx * dx + dy * dy < link) { const a = find(i), b = find(j); if (a !== b) parent[a] = b; }
     }
     const size = new Map(); let best = 0;
@@ -684,8 +689,8 @@
     for (let g = 100; g < W; g += 100) { ctx.moveTo(g, 0); ctx.lineTo(g, W); ctx.moveTo(0, g); ctx.lineTo(W, g); }
     ctx.stroke();
     ctx.strokeStyle = css('--ink-3'); ctx.lineWidth = 1.5 / s; ctx.strokeRect(0, 0, W, W);   // the field edge
-    const r = P.R, ink = css('--ink'), ink3 = css('--ink-3');
-    const margin = Math.max(r * 3, P.L * r * 2 + 20);
+    const R = P.R, ink = css('--ink'), ink3 = css('--ink-3');
+    const margin = Math.max(R * 3, P.L * R * 2 + 20);
     const inView = a => a.x > vx0 - margin && a.x < vx1 + margin && a.y > vy0 - margin && a.y < vy1 + margin;
     // trails (drawn under the bodies)
     if (D.trail || selected >= 0) {
@@ -695,7 +700,7 @@
         if (!inView(a)) continue;
         const t = a.trail; if (t.length < 4) continue;
         ctx.strokeStyle = agentColor(a); ctx.globalAlpha = a.id === selected ? 0.9 : 0.35;
-        ctx.lineWidth = a.id === selected ? Math.max(2, r * 0.5) : Math.max(1, r * 0.3);
+        ctx.lineWidth = a.id === selected ? Math.max(2, a.r * 0.5) : Math.max(1, a.r * 0.3);
         ctx.beginPath(); ctx.moveTo(t[0], t[1]);
         for (let i = 2; i < t.length; i += 2) {
           if (Math.abs(t[i] - t[i - 2]) > W / 2 || Math.abs(t[i + 1] - t[i - 1]) > W / 2) ctx.moveTo(t[i], t[i + 1]);
@@ -710,7 +715,7 @@
     ctx.lineCap = 'round';
     for (const a of agents) {
       if (!inView(a)) continue;
-      const col = agentColor(a);
+      const r = a.r, col = agentColor(a);
       const walking = a.state === 0;
       const swing = walking ? Math.sin(stepCount * 0.35 + a.id) * 0.18 : 0;
       ctx.save();
@@ -755,14 +760,14 @@
     if (selected >= 0 && selected < agents.length && P.anticipate) {
       const a = agents[selected];
       for (const c of a.cands) {
-        ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(1.5, r * 0.35), 0, TAU);
+        ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(1.5, a.r * 0.35), 0, TAU);
         ctx.fillStyle = !c.ok ? ink3 : c.ov > 0 ? css('--accent') : ink; ctx.globalAlpha = c.ok ? 0.9 : 0.35; ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
     if (selected >= 0 && selected < agents.length) {
       const a = agents[selected];
-      ctx.beginPath(); ctx.arc(a.x, a.y, r * 3, 0, TAU);
+      ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 3, 0, TAU);
       ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
     }
     // when zoomed in, an overview in the corner shows the whole field and where the window is
@@ -814,7 +819,7 @@
   const EXP = { rows: [], cancel: false };
   const expEl = id => document.getElementById(id);
   function summarizeCondition() {
-    let c = `${P.N}匹 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
+    let c = `${P.N}匹 体${P.RV ? (P.R - P.RV) + '〜' : ''}${P.R} 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
     if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
     return c;
   }
@@ -914,8 +919,8 @@
     const tap = !drag.moved; drag = null;
     if (!tap) return;
     const [x, y] = toWorld(ev);
-    let hit = -1, best = (P.R * 2.2) ** 2;
-    for (const a of agents) { const d = (a.x - x) ** 2 + (a.y - y) ** 2; if (d < best) { best = d; hit = a.id; } }
+    let hit = -1, best = Infinity;
+    for (const a of agents) { const d = (a.x - x) ** 2 + (a.y - y) ** 2; if (d < (a.r * 2.2) ** 2 && d < best) { best = d; hit = a.id; } }
     if (hit >= 0) { selected = selected === hit ? -1 : hit; return; }
     nudge(ev);
   });
@@ -928,7 +933,7 @@
   }
   function nudge(ev) {
     const [x, y] = toWorld(ev);
-    const hand = { h: 0, state: 0 };
+    const hand = { h: 0, state: 0, r: P.R };
     for (const a of agents) {
       const dx = a.x - x, dy = a.y - y, d = Math.hypot(dx, dy);
       if (d < P.R * 4) { hand.h = Math.atan2(dy, dx); if (a.state !== 2) { touch(hand, a); touchWindow.length && touchWindow[touchWindow.length - 1]++; } }
@@ -937,7 +942,7 @@
 
   // small hook for scripted checks (not used by the page itself)
   // ---- a "setting" = the slider values + placement + head-on rule, as a plain object ----
-  const SHARE_KEYS = ['N','A','R','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','spd'];
+  const SHARE_KEYS = ['N','A','R','RV','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
     o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; return o;
