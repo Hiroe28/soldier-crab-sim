@@ -17,6 +17,9 @@
     --accent-2: #eb6834;
     --sand: #efe6d2;
     --grid: #e6dcc6;
+    --wall: #8f8778;
+    --start: #1baf7a;
+    --goal: #eb6834;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -25,9 +28,11 @@
       --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
       --accent: #3987e5; --accent-2: #d95926;
       --sand: #2a2620; --grid: #35302a;
+      --wall: #6f695d; --start: #199e70; --goal: #d95926;
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
     font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
@@ -64,6 +69,14 @@
   .tile .value { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.2; }
   .tile canvas { width: 100%; height: 38px; display: block; margin-top: 4px; }
   .tile .hint { font-size: 11px; color: var(--ink-3); }
+  .tile.wide { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: center; }
+  .tile.wide .label, .tile.wide .hint { grid-column: 1 / -1; }
+  .tile.wide canvas { margin-top: 0; }
+  .coursebar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 13px; color: var(--ink-2); }
+  .coursebar .tools { display: inline-flex; gap: 4px; }
+  .coursebar button.tool.on, #btnEdit[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  .coursebar .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  canvas#arena.editing { cursor: crosshair; }
   .sethint { font-size: 11px; color: var(--ink-3); line-height: 1.4; margin: -4px 0 8px; }
   body.nohints .sethint { display: none; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
@@ -72,7 +85,7 @@
   @media (min-width: 801px) {
     /* the field stays on screen while the (longer) settings column scrolls with the page */
     .stage { position: sticky; top: 10px; }
-    canvas#arena { width: min(100%, calc(100vh - 250px)); min-width: 320px; margin: 0 auto; }
+    canvas#arena { width: min(100%, calc(100vh - 300px)); min-width: 320px; margin: 0 auto; }
   }
   details.group { margin-top: 12px; }
   details.group summary {
@@ -121,11 +134,33 @@
 
 <main>
   <section class="stage">
+    <div class="coursebar">
+      <label>コース <select id="courseTpl">
+        <option value="none">なし</option>
+        <option value="straight">一本道</option>
+        <option value="bend">L字</option>
+        <option value="zigzag">ジグザグ</option>
+        <option value="tee">T字路</option>
+        <option value="neck">狭い出口</option>
+        <option value="custom" hidden>（自分で編集）</option>
+      </select></label>
+      <button id="btnEdit" aria-pressed="false">コースを編集</button>
+      <span class="tools" id="courseTools" hidden>
+        <button class="tool on" data-tool="wall"><i class="sw" style="background:var(--wall)"></i>壁</button>
+        <button class="tool" data-tool="start"><i class="sw" style="background:var(--start)"></i>スタート</button>
+        <button class="tool" data-tool="goal"><i class="sw" style="background:var(--goal)"></i>ゴール</button>
+        <button class="tool" data-tool="erase">消しゴム</button>
+      </span>
+      <label id="cellWrap" hidden>マスの大きさ <select id="courseCell"><option>25</option><option selected>50</option><option>100</option></select></label>
+      <button id="btnCourseClear" hidden>すべて消す</button>
+    </div>
+    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。広さかマスの大きさを変えるとコースは消えます。</div>
     <canvas id="arena" width="600" height="600" aria-label="シミュレーション画面"></canvas>
     <div class="legend">
       <span id="legColor"><i style="background: conic-gradient(hsl(0 60% 50%), hsl(90 60% 50%), hsl(180 60% 50%), hsl(270 60% 50%), hsl(360 60% 50%))"></i>色＝個体（同じ色は同じ個体）、ハサミと目のある側が前</span>
       <span><i style="background: transparent; border: 2px solid var(--ink-3)"></i>止まっている</span>
       <span><i style="background: transparent; border: 2px solid var(--ink)"></i>触られて向きを合わせ中</span>
+      <span id="legCourse" hidden><i style="background: var(--wall); border-radius: 2px"></i>壁　S＝スタート　G＝ゴール</span>
       <span>個体をタップすると追跡（もう一度で解除）。空いた場所をタップすると手で触る。ドラッグで移動、ホイールか「拡大」で寄る</span>
     </div>
     <div class="tiles">
@@ -152,6 +187,12 @@
         <div class="value" id="vTouch">0</div>
         <canvas id="cTouch"></canvas>
         <div class="hint">「触られた」判定が起きた回数。</div>
+      </div>
+      <div class="tile wide" id="tileGoal" hidden>
+        <div class="label">ゴールに着いた割合</div>
+        <div class="value" id="vGoal">0%</div>
+        <canvas id="cGoal"></canvas>
+        <div class="hint" id="hGoal">一度でもゴールのマスに入った個体の割合。</div>
       </div>
     </div>
   </section>
@@ -197,6 +238,7 @@
       <select id="pInit">
         <option value="spread">全体に散らばる</option>
         <option value="center">中央にかたまる</option>
+        <option value="start" disabled>スタート領域（コースで塗った場所）</option>
       </select>
       <div class="hint sethint">「中央にかたまる」は巣穴から出てきた直後のように中央に集めて始める。</div>
     </div>
@@ -207,6 +249,14 @@
         <option value="wall">壁：端で止まる</option>
       </select>
       <div class="hint sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。</div>
+    </div>
+    <div class="row stack">
+      <label for="pWallRule">壁に当たったら</label>
+      <select id="pWallRule">
+        <option value="stop">止まって、いつも通り向きを選び直す</option>
+        <option value="slide">壁に沿って進む</option>
+      </select>
+      <div class="hint sethint">フィールドの端の壁とコースの壁の両方に効く。「止まる」は規則を足さない既定。壁際にたまりやすい。「沿って進む」は、向きのうち壁に向かう成分だけを捨てて歩き続ける。</div>
     </div>
 
     <h2>個体</h2>
@@ -315,6 +365,8 @@
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">最大の群れ</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">整列度</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">接触/5秒</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">ゴール到達</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">半数到達まで</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -334,6 +386,7 @@
     <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
+    <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
 </section>
@@ -382,7 +435,7 @@
   };
   function applyPreset(name) {
     Object.assign(P, PRESETS[name]);
-    if (P.init) { D.init = P.init; document.getElementById('pInit').value = P.init; }
+    if (P.init) setInit(COURSE.hasStart ? 'start' : P.init);        // a course with a start area keeps its start
     if (P.anticipate) document.getElementById('grpAnticipate').open = true;
     document.getElementById('presetHint').textContent = PRESET_HINT[name] || '';
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
@@ -408,7 +461,7 @@
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wrap', turn: 'uniform' };
+  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wrap', turn: 'uniform', wallRule: 'stop' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
@@ -425,6 +478,7 @@
   document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
   document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; });
   document.getElementById('pTurn').addEventListener('change', e => { D.turn = e.target.value; });
+  document.getElementById('pWallRule').addEventListener('change', e => { D.wallRule = e.target.value; });
   const zoomEl = document.getElementById('pZoom');
   function setZoom(z) {
     D.zoom = Math.min(+zoomEl.max, Math.max(+zoomEl.min, z));
@@ -440,6 +494,146 @@
   let rand = mulberry32(seed);
   function gauss() { let u = 0, v = 0; while (u === 0) u = rand(); while (v === 0) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
 
+  // ---------- course: a grid of square cells painted onto the field ----------
+  const FREE = 0, WALL = 1, START = 2, GOAL = 3;
+  const COURSE = { cell: 50, n: 0, cells: new Uint8Array(0), any: false, hasStart: false, hasGoal: false, startCells: [], name: '' };
+  const EDIT = { on: false, tool: 'wall', painting: false, last: null };
+  let arrivedCount = 0, t50 = null;     // crabs that have reached a goal cell; step at which half had arrived
+  function ensureCourse() {             // (re)build an empty grid when the field or cell size changed
+    const n = Math.round(W / COURSE.cell);
+    if (n === COURSE.n && COURSE.cells.length === n * n) return false;
+    COURSE.n = n; COURSE.cells = new Uint8Array(n * n); COURSE.name = ''; scanCourse();
+    return true;
+  }
+  function scanCourse() {
+    COURSE.any = COURSE.hasStart = COURSE.hasGoal = false; COURSE.startCells = [];
+    const c = COURSE.cells;
+    for (let k = 0; k < c.length; k++) {
+      if (c[k]) COURSE.any = true;
+      if (c[k] === START) { COURSE.hasStart = true; COURSE.startCells.push(k); }
+      if (c[k] === GOAL) COURSE.hasGoal = true;
+    }
+  }
+  // cell type under a world point (periodic fields wrap; outside a walled field counts as free)
+  function cellTypeAt(x, y) {
+    const n = COURSE.n; if (!COURSE.any || !n) return FREE;
+    let i = Math.floor(x / COURSE.cell), j = Math.floor(y / COURSE.cell);
+    if (D.boundary === 'wrap') { i = ((i % n) + n) % n; j = ((j % n) + n) % n; }
+    else if (i < 0 || j < 0 || i >= n || j >= n) return FREE;
+    return COURSE.cells[j * n + i];
+  }
+  // what a walking crab does when it runs into a wall whose outward normal is (nx, ny):
+  // 'stop' (default, no extra rule): stop and pick the next direction the usual way.
+  // 'slide': keep walking along the wall, in the wall direction closest to its heading.
+  function hitWall(a, nx, ny) {
+    if (a.state !== 0) return;
+    const hx = Math.cos(a.h), hy = Math.sin(a.h), into = hx * nx + hy * ny;
+    if (into >= 0) return;                                   // not walking into the wall
+    if (D.wallRule !== 'slide') { a.state = 1; a.remain = P.P * FPS; return; }
+    let tx = hx - into * nx, ty = hy - into * ny;            // heading with the into-the-wall part removed
+    if (Math.hypot(tx, ty) < 0.05) { const sgn = rand() < 0.5 ? 1 : -1; tx = -ny * sgn; ty = nx * sgn; }   // straight on: pick a side
+    a.h = (Math.atan2(ty, tx) + TAU) % TAU;
+  }
+  // a crab is a circle, a wall cell is a square: push the crab out along the shortest way.
+  // A walking crab that runs into a wall simply stops and (as after any step) picks its next direction.
+  function resolveBlocks(a) {
+    const c = COURSE.cell, n = COURSE.n, wrap = D.boundary === 'wrap', r = a.r;
+    const i0 = Math.floor((a.x - r) / c), i1 = Math.floor((a.x + r) / c);
+    const j0 = Math.floor((a.y - r) / c), j1 = Math.floor((a.y + r) / c);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      let ii = i, jj = j;
+      if (wrap) { ii = ((i % n) + n) % n; jj = ((j % n) + n) % n; }
+      else if (i < 0 || j < 0 || i >= n || j >= n) continue;
+      if (COURSE.cells[jj * n + ii] !== WALL) continue;
+      const x0 = i * c, y0 = j * c, x1 = x0 + c, y1 = y0 + c;
+      const px = Math.max(x0, Math.min(a.x, x1)), py = Math.max(y0, Math.min(a.y, y1));
+      const dx = a.x - px, dy = a.y - py, d2 = dx * dx + dy * dy;
+      if (d2 >= r * r) continue;
+      let nx, ny, depth;
+      if (d2 > 1e-9) { const d = Math.sqrt(d2); nx = dx / d; ny = dy / d; depth = r - d; }
+      else {                              // centre inside the block: leave by the nearest face
+        const l = a.x - x0, rt = x1 - a.x, t = a.y - y0, b = y1 - a.y, m = Math.min(l, rt, t, b);
+        if (m === l) { nx = -1; ny = 0; depth = l + r; } else if (m === rt) { nx = 1; ny = 0; depth = rt + r; }
+        else if (m === t) { nx = 0; ny = -1; depth = t + r; } else { nx = 0; ny = 1; depth = b + r; }
+      }
+      a.x += nx * depth; a.y += ny * depth;
+      hitWall(a, nx, ny);
+    }
+  }
+  // move any crab whose centre sits inside a wall to the nearest free cell (after painting or loading)
+  function evictFromWalls() {
+    if (!COURSE.any) return;
+    const n = COURSE.n, c = COURSE.cell;
+    for (const a of agents) {
+      if (cellTypeAt(a.x, a.y) !== WALL) continue;
+      const ci = Math.min(n - 1, Math.max(0, Math.floor(a.x / c))), cj = Math.min(n - 1, Math.max(0, Math.floor(a.y / c)));
+      let found = false;
+      for (let ring = 1; ring < n && !found; ring++) {
+        for (let j = cj - ring; j <= cj + ring && !found; j++) for (let i = ci - ring; i <= ci + ring && !found; i++) {
+          if (Math.max(Math.abs(i - ci), Math.abs(j - cj)) !== ring || i < 0 || j < 0 || i >= n || j >= n) continue;
+          if (COURSE.cells[j * n + i] !== WALL) { a.x = (i + 0.5) * c; a.y = (j + 0.5) * c; found = true; }
+        }
+      }
+    }
+  }
+  // text form used by shared links and saved settings: "<cell>_<n>_<run-length codes>", o=free w=wall s=start g=goal
+  function encodeCourse() {
+    if (!COURSE.any) return '';
+    const ch = 'owsg', c = COURSE.cells; let out = '', run = 0, prev = -1;
+    for (let k = 0; k <= c.length; k++) {
+      const t = k < c.length ? c[k] : -2;
+      if (t === prev) run++;
+      else { if (prev >= 0) out += (run > 1 ? run : '') + ch[prev]; prev = t; run = 1; }
+    }
+    return COURSE.cell + '_' + COURSE.n + '_' + out;
+  }
+  function decodeCourse(str) {
+    const m = /^(\d+)_(\d+)_([0-9owsg]+)$/.exec(String(str || '')); if (!m) return false;
+    const cell = +m[1], n = +m[2]; if (![25, 50, 100].includes(cell) || n !== Math.round(W / cell)) return false;
+    const cells = new Uint8Array(n * n); let k = 0;
+    for (const t of m[3].matchAll(/(\d*)([owsg])/g)) { const cnt = +(t[1] || 1), v = 'owsg'.indexOf(t[2]); for (let q = 0; q < cnt && k < cells.length; q++) cells[k++] = v; }
+    COURSE.cell = cell; COURSE.n = n; COURSE.cells = cells; scanCourse();
+    document.getElementById('courseCell').value = String(cell);
+    return true;
+  }
+  function clearCourse() { COURSE.n = 0; ensureCourse(); COURSE.name = ''; }
+  // ready-made courses, drawn on a 24 x 24 plan and scaled to the current grid. Everything starts as wall.
+  function carve(g, c0, r0, c1, r1, t) { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) g[r][c] = t || FREE; }
+  const TEMPLATES = {
+    straight: ['一本道', g => { carve(g, 1, 8, 6, 15, START); carve(g, 7, 10, 16, 13); carve(g, 17, 8, 22, 15, GOAL); }],
+    bend:     ['L字', g => { carve(g, 1, 15, 6, 22, START); carve(g, 7, 17, 18, 20); carve(g, 15, 7, 18, 16); carve(g, 11, 1, 22, 6, GOAL); }],
+    zigzag:   ['ジグザグ', g => { carve(g, 1, 8, 5, 15, START); carve(g, 6, 10, 10, 13); carve(g, 7, 3, 10, 9); carve(g, 11, 3, 16, 6); carve(g, 13, 7, 16, 20); carve(g, 17, 17, 18, 20); carve(g, 19, 14, 22, 22, GOAL); }],
+    tee:      ['T字路', g => { carve(g, 8, 17, 15, 22, START); carve(g, 10, 12, 13, 16); carve(g, 5, 8, 18, 11); carve(g, 1, 4, 4, 15, GOAL); carve(g, 19, 4, 22, 15, GOAL); }],
+    neck:     ['狭い出口', g => { carve(g, 1, 3, 10, 20, START); carve(g, 11, 11, 12, 12); carve(g, 13, 3, 22, 20, GOAL); }],
+  };
+  function applyTemplate(key) {
+    clearCourse();
+    if (TEMPLATES[key]) {
+      const g = Array.from({ length: 24 }, () => new Array(24).fill(WALL));
+      TEMPLATES[key][1](g);
+      const n = COURSE.n;
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++)
+        COURSE.cells[j * n + i] = g[Math.min(23, Math.floor((j + 0.5) * 24 / n))][Math.min(23, Math.floor((i + 0.5) * 24 / n))];
+      COURSE.name = TEMPLATES[key][0];
+    }
+    document.getElementById('courseTpl').value = TEMPLATES[key] ? key : 'none';
+    courseChanged(false);
+    if (COURSE.hasStart) setInit('start');
+    else if (D.init === 'start') setInit('spread');
+    reset();
+  }
+  function setInit(v) { D.init = v; document.getElementById('pInit').value = v; }
+  // after any change to the grid: refresh flags and the bits of UI that depend on them
+  function courseChanged(edited) {
+    scanCourse();
+    if (edited) { COURSE.name = COURSE.any ? '自作' : ''; document.getElementById('courseTpl').value = COURSE.any ? 'custom' : 'none'; evictFromWalls(); if (COURSE.hasStart && D.init !== 'start') setInit('start'); }
+    document.querySelector('#pInit option[value="start"]').disabled = !COURSE.hasStart;
+    if (!COURSE.hasStart && D.init === 'start') setInit('spread');
+    document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
+    document.getElementById('legCourse').hidden = !COURSE.any;
+    if (!COURSE.hasGoal) { arrivedCount = 0; t50 = null; for (const a of agents) a.arrived = false; }
+  }
+
   // ---------- agents ----------
   // state: 0 = moving, 1 = paused (voluntary), 2 = touched (waiting to adopt heading)
   let agents = [];
@@ -449,19 +643,28 @@
   function makeAgent(i) {
     const h = rand() * TAU;
     let x, y;
-    if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
-    else { x = rand() * W; y = rand() * W; }
-    return { id: i, x, y, h, hNext: h, r: randomRadius(), state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false };
+    for (let tries = 0; tries < 60; tries++) {
+      if (D.init === 'start' && COURSE.startCells.length) {
+        const k = COURSE.startCells[Math.floor(rand() * COURSE.startCells.length)], c = COURSE.cell;
+        x = ((k % COURSE.n) + rand()) * c; y = (Math.floor(k / COURSE.n) + rand()) * c;
+      } else if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
+      else { x = rand() * W; y = rand() * W; }
+      if (cellTypeAt(x, y) !== WALL) break;          // never start inside a wall
+    }
+    return { id: i, x, y, h, hNext: h, r: randomRadius(), state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false, arrived: false };
   }
   function reset() {
-    rand = mulberry32(seed); agents = [];
+    if (ensureCourse()) { document.getElementById('courseTpl').value = 'none'; courseChanged(false); }   // field size changed: the course is gone
+    rand = mulberry32(seed); agents = []; arrivedCount = 0; t50 = null;
     for (let i = 0; i < P.N; i++) agents.push(makeAgent(i));
+    evictFromWalls();
     selected = -1; cam.x = W / 2; cam.y = W / 2; resetStats();
   }
   function resizeAgents() {
     while (agents.length < P.N) agents.push(makeAgent(agents.length));
     agents.length = Math.min(agents.length, P.N);
     if (selected >= agents.length) selected = -1;
+    arrivedCount = agents.filter(a => a.arrived).length;
   }
   function agentColor(a) {
     if (D.color === 'heading') return `hsl(${a.h * 180 / Math.PI} 65% 50%)`;
@@ -476,10 +679,10 @@
 
   // ---------- stats ----------
   const HIST = 240;
-  const hist = { phi: [], clu: [], grp: [], touch: [] };
+  const hist = { phi: [], clu: [], grp: [], touch: [], goal: [] };
   let touchWindow = [];                // per-step touch counts for the last 5 s
   let stepCount = 0;
-  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; touchWindow = []; stepCount = 0; }
+  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; touchWindow = []; stepCount = 0; }
 
   // displacement from (x1,y1) to (x2,y2); with periodic boundaries the shortest image is used
   function disp(x1, y1, x2, y2) {
@@ -537,10 +740,19 @@
     //    With periodic boundaries the field wraps instead: leaving one side re-enters from the other.
     for (const a of agents) {
       if (D.boundary === 'wrap') { wrapXY(a); continue; }
-      const r = a.r; let blocked = false;
-      if (a.x < r) { a.x = r; blocked = true; } else if (a.x > W - r) { a.x = W - r; blocked = true; }
-      if (a.y < r) { a.y = r; blocked = true; } else if (a.y > W - r) { a.y = W - r; blocked = true; }
-      if (blocked && a.state === 0) { a.state = 1; a.remain = P.P * FPS; }
+      const r = a.r;
+      if (a.x < r) { a.x = r; hitWall(a, 1, 0); } else if (a.x > W - r) { a.x = W - r; hitWall(a, -1, 0); }
+      if (a.y < r) { a.y = r; hitWall(a, 0, 1); } else if (a.y > W - r) { a.y = W - r; hitWall(a, 0, -1); }
+    }
+
+    // 3b. course: walls push crabs out; goal cells count first arrivals
+    if (COURSE.any) {
+      for (const a of agents) resolveBlocks(a);
+      if (COURSE.hasGoal) for (const a of agents) {
+        if (a.arrived || cellTypeAt(a.x, a.y) !== GOAL) continue;
+        a.arrived = true; arrivedCount++;
+        if (t50 === null && arrivedCount * 2 >= agents.length) t50 = stepCount + 1;
+      }
     }
 
     // 4. stats
@@ -552,6 +764,7 @@
       const cl = largestClusterFrac();
       pushHist(hist.clu, cl.largest); pushHist(hist.grp, cl.grouped);
       pushHist(hist.touch, touchWindow.reduce((s, v) => s + v, 0));
+      if (COURSE.hasGoal) pushHist(hist.goal, agents.length ? arrivedCount / agents.length : 0);
     }
   }
   // toucher t touches victim v. Returns 1 if a new "touched" event happened.
@@ -574,7 +787,7 @@
       let x = a.x + Math.cos(ang) * len, y = a.y + Math.sin(ang) * len;
       let inside = x > r && x < W - r && y > r && y < W - r;
       if (D.boundary === 'wrap') { x = (x % W + W) % W; y = (y % W + W) % W; inside = true; }
-      cands.push({ x, y, ang, len, ok: inside && !occupied(x, y, a, d2), ov: 0 });
+      cands.push({ x, y, ang, len, ok: inside && cellTypeAt(x, y) !== WALL && !occupied(x, y, a, d2), ov: 0 });
     }
     a.cands = cands;
     const near = [];
@@ -716,6 +929,26 @@
     ctx.beginPath();
     for (let g = 100; g < W; g += 100) { ctx.moveTo(g, 0); ctx.lineTo(g, W); ctx.moveTo(0, g); ctx.lineTo(W, g); }
     ctx.stroke();
+    // course cells (walls solid, start and goal as a tint with a letter so colour is not the only cue)
+    if (COURSE.any || EDIT.on) {
+      const c = COURSE.cell, n = COURSE.n, cells = COURSE.cells;
+      const i0 = Math.max(0, Math.floor(vx0 / c)), i1 = Math.min(n - 1, Math.floor(vx1 / c));
+      const j0 = Math.max(0, Math.floor(vy0 / c)), j1 = Math.min(n - 1, Math.floor(vy1 / c));
+      const cols = [null, css('--wall'), css('--start'), css('--goal')], letters = c * s >= 12;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `600 ${c * 0.42}px system-ui, sans-serif`;
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const t = cells[j * n + i]; if (!t) continue;
+        ctx.fillStyle = cols[t]; ctx.globalAlpha = t === WALL ? 1 : 0.22;
+        ctx.fillRect(i * c, j * c, c + 0.6 / s, c + 0.6 / s);
+        if (t !== WALL && letters) { ctx.globalAlpha = 0.45; ctx.fillText(t === START ? 'S' : 'G', (i + 0.5) * c, (j + 0.55) * c); }
+      }
+      ctx.globalAlpha = 1;
+      if (EDIT.on) {
+        ctx.strokeStyle = css('--ink-3'); ctx.globalAlpha = 0.35; ctx.lineWidth = 1 / s; ctx.beginPath();
+        for (let g = 0; g <= n; g++) { ctx.moveTo(g * c, 0); ctx.lineTo(g * c, W); ctx.moveTo(0, g * c); ctx.lineTo(W, g * c); }
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
+    }
     ctx.strokeStyle = css('--ink-3'); ctx.lineWidth = 1.5 / s; ctx.strokeRect(0, 0, W, W);   // the field edge
     const R = P.R, ink = css('--ink'), ink3 = css('--ink-3');
     const margin = Math.max(R * 3, P.L * R * 2 + 20);
@@ -806,6 +1039,10 @@
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = css('--surface'); ctx.globalAlpha = 0.85; ctx.fillRect(ox - gap / 2, oy - gap / 2, size + gap, size + gap); ctx.globalAlpha = 1;
       ctx.fillStyle = css('--sand'); ctx.fillRect(ox, oy, size, size);
+      if (COURSE.any) {
+        const c = COURSE.cell, n = COURSE.n; ctx.fillStyle = css('--wall');
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (COURSE.cells[j * n + i] === WALL) ctx.fillRect(ox + i * c * k, oy + j * c * k, c * k + 0.5, c * k + 0.5);
+      }
       ctx.strokeStyle = ink3; ctx.lineWidth = 1 * dpr; ctx.strokeRect(ox, oy, size, size);
       for (const a of agents) {
         ctx.fillStyle = agentColor(a);
@@ -841,13 +1078,20 @@
     drawSpark('cPhi', hist.phi, 1, css('--accent'));
     drawSpark('cClu', hist.clu, 1, css('--accent'));
     drawSpark('cTouch', hist.touch, 0, css('--accent-2'));
+    if (COURSE.hasGoal) {
+      const g = agents.length ? arrivedCount / agents.length : 0;
+      document.getElementById('vGoal').textContent = Math.round(g * 100) + '%';
+      document.getElementById('hGoal').textContent = `一度でもゴールのマスに入った個体の割合。経過 ${Math.floor(stepCount / FPS)}秒、半数到達：${t50 === null ? 'まだ' : Math.round(t50 / FPS) + '秒'}`;
+      drawSpark('cGoal', hist.goal, 1, css('--accent'));
+    }
   }
 
   // ---------- comparison experiments: run the current setting for several seeds, no drawing ----------
   const EXP = { rows: [], cancel: false };
   const expEl = id => document.getElementById(id);
   function summarizeCondition() {
-    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
+    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
+    if (COURSE.any) c += ` | コース:${COURSE.name || '自作'}`;
     if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
     return c;
   }
@@ -860,7 +1104,7 @@
     const trials = Math.max(1, Math.min(30, +expEl('expTrials').value || 5));
     const secs = Math.max(30, Math.min(600, +expEl('expSecs').value || 120));
     const name = expEl('expName').value.trim() || ('条件' + (EXP.rows.length + 1));
-    const saved = { agents, seed, rand, hist: { ...hist }, touchWindow, stepCount, selected, running };
+    const saved = { agents, seed, rand, hist: { ...hist }, touchWindow, stepCount, selected, running, arrivedCount, t50 };
     running = false; EXP.cancel = false;
     expEl('btnExp').disabled = true; expEl('btnExpCancel').hidden = false;
     const total = secs * FPS, windowStart = Math.max(0, total - 30 * FPS);
@@ -881,19 +1125,27 @@
         expEl('expStatus').textContent = `実験中 ${t}/${trials} 回目（${Math.round(k / total * 100)}%）`;
         await new Promise(r => setTimeout(r, 0));
       }
-      if (!EXP.cancel && acc.n) per.push({ grp: acc.grp / acc.n, clu: acc.clu / acc.n, phi: acc.phi / acc.n, touch: acc.touch / acc.n });
+      if (!EXP.cancel && acc.n) per.push({ grp: acc.grp / acc.n, clu: acc.clu / acc.n, phi: acc.phi / acc.n, touch: acc.touch / acc.n,
+        goal: agents.length ? arrivedCount / agents.length : 0, t50: t50 === null ? NaN : t50 / FPS });
     }
     agents = saved.agents; seed = saved.seed; rand = saved.rand; Object.assign(hist, saved.hist);
     touchWindow = saved.touchWindow; stepCount = saved.stepCount; selected = saved.selected; running = saved.running;
+    arrivedCount = saved.arrivedCount; t50 = saved.t50;
     expEl('btnExp').disabled = false; expEl('btnExpCancel').hidden = true;
-    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per }); renderExp(); }
+    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per, hasGoal: COURSE.hasGoal }); renderExp(); }
     expEl('expStatus').textContent = EXP.cancel ? '中止しました' : `完了（${per.length}回 × ${secs}秒）`;
   }
   function fmtPct(arr) { const [m, sd] = meanSd(arr); return `${(m * 100).toFixed(1)} ± ${(sd * 100).toFixed(1)}%`; }
   function fmtNum(arr, d) { const [m, sd] = meanSd(arr); return `${m.toFixed(d)} ± ${sd.toFixed(d)}`; }
   function rowCells(r) {
+    let goal = '—', half = '—';
+    if (r.hasGoal) {
+      goal = fmtPct(r.per.map(x => x.goal));
+      const reached = r.per.map(x => x.t50).filter(v => isFinite(v));
+      half = reached.length ? `${fmtNum(reached, 0)}秒（${reached.length}/${r.per.length}回）` : `未到達（0/${r.per.length}回）`;
+    }
     return [r.name, r.cond, `${r.trials}×${r.secs}秒`,
-      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0)];
+      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half];
   }
   function renderExp() {
     const tb = expEl('expTable').querySelector('tbody'); tb.innerHTML = '';
@@ -907,7 +1159,7 @@
   expEl('btnExpCancel').addEventListener('click', () => { EXP.cancel = true; });
   expEl('btnExpClear').addEventListener('click', () => { if (!EXP.rows.length || confirm('表を消しますか')) { EXP.rows = []; renderExp(); } });
   expEl('btnExpCopy').addEventListener('click', async e => {
-    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒'];
+    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで'];
     const tsv = [head, ...EXP.rows.map(rowCells)].map(r => r.join('\t')).join('\n');
     try { await navigator.clipboard.writeText(tsv); e.target.textContent = 'コピーしました'; }
     catch { window.prompt('コピーしてください', tsv); }
@@ -928,11 +1180,23 @@
 
   // tap on a crab: follow it. tap elsewhere: a "hand" that touches crabs. drag: pan the view. wheel: zoom.
   let drag = null;
+  function paintFromEvent(ev) {
+    const [x, y] = toWorld(ev), c = COURSE.cell, n = COURSE.n;
+    const type = { wall: WALL, start: START, goal: GOAL, erase: FREE }[EDIT.tool];
+    const from = EDIT.last || [x, y], steps = Math.max(1, Math.ceil(Math.hypot(x - from[0], y - from[1]) / (c / 2)));
+    for (let q = 0; q <= steps; q++) {
+      const i = Math.floor((from[0] + (x - from[0]) * q / steps) / c), j = Math.floor((from[1] + (y - from[1]) * q / steps) / c);
+      if (i >= 0 && j >= 0 && i < n && j < n) COURSE.cells[j * n + i] = type;
+    }
+    EDIT.last = [x, y]; scanCourse();
+  }
   arena.addEventListener('pointerdown', ev => {
-    drag = { x: ev.clientX, y: ev.clientY, moved: false };
     arena.setPointerCapture(ev.pointerId);
+    if (EDIT.on) { EDIT.painting = true; EDIT.last = null; paintFromEvent(ev); return; }
+    drag = { x: ev.clientX, y: ev.clientY, moved: false };
   });
   arena.addEventListener('pointermove', ev => {
+    if (EDIT.painting) { paintFromEvent(ev); return; }
     if (!drag) return;
     const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
     if (!drag.moved && Math.hypot(dx, dy) < 4) return;
@@ -943,6 +1207,7 @@
     if (D.follow) selected = -1;                       // panning by hand releases the follow
   });
   arena.addEventListener('pointerup', ev => {
+    if (EDIT.painting) { EDIT.painting = false; courseChanged(true); return; }
     if (!drag) return;
     const tap = !drag.moved; drag = null;
     if (!tap) return;
@@ -952,7 +1217,7 @@
     if (hit >= 0) { selected = selected === hit ? -1 : hit; return; }
     nudge(ev);
   });
-  arena.addEventListener('pointercancel', () => { drag = null; });
+  arena.addEventListener('pointercancel', () => { drag = null; if (EDIT.painting) { EDIT.painting = false; courseChanged(true); } });
   arena.addEventListener('wheel', ev => { ev.preventDefault(); setZoom(D.zoom * Math.pow(1.15, -ev.deltaY / 100)); }, { passive: false });
   function toWorld(ev) {
     const rect = arena.getBoundingClientRect(), view = viewSide();
@@ -968,12 +1233,34 @@
     }
   }
 
+  // ---- course toolbar ----
+  document.getElementById('btnEdit').addEventListener('click', e => {
+    EDIT.on = !EDIT.on; e.currentTarget.setAttribute('aria-pressed', EDIT.on); e.currentTarget.textContent = EDIT.on ? '編集を終える' : 'コースを編集';
+    for (const id of ['courseTools', 'cellWrap', 'btnCourseClear', 'courseHint']) document.getElementById(id).hidden = !EDIT.on;
+    arena.classList.toggle('editing', EDIT.on);
+    if (EDIT.on) { selected = -1; ensureCourse(); }
+  });
+  for (const b of document.querySelectorAll('.coursebar .tool')) b.addEventListener('click', () => {
+    EDIT.tool = b.dataset.tool;
+    for (const o of document.querySelectorAll('.coursebar .tool')) o.classList.toggle('on', o === b);
+  });
+  document.getElementById('courseTpl').addEventListener('change', e => { if (e.target.value !== 'custom') applyTemplate(e.target.value); });
+  document.getElementById('courseCell').addEventListener('change', e => {
+    COURSE.cell = +e.target.value; document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
+  });
+  document.getElementById('btnCourseClear').addEventListener('click', () => {
+    if (COURSE.any && !confirm('コースをすべて消しますか')) return;
+    document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
+  });
+
   // small hook for scripted checks (not used by the page itself)
   // ---- a "setting" = the slider values + placement + head-on rule, as a plain object ----
   const SHARE_KEYS = ['N','A','R','Rmin','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
-    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; return o;
+    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; o.wallRule = D.wallRule;
+    const cs = encodeCourse(); if (cs) { o.course = cs; o.courseName = COURSE.name; }
+    return o;
   }
   function applyState(o, hint) {
     for (const k of SHARE_KEYS) if (k in o) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? (o[k] === true || o[k] === '1' || o[k] === 1) : +o[k];
@@ -981,15 +1268,24 @@
     if (o.headon) { D.headon = o.headon; document.getElementById('pHeadon').value = D.headon; }
     if (o.boundary) { D.boundary = o.boundary; document.getElementById('pBoundary').value = D.boundary; }
     if (o.turn) { D.turn = o.turn; document.getElementById('pTurn').value = D.turn; }
+    D.wallRule = o.wallRule === 'slide' ? 'slide' : 'stop'; document.getElementById('pWallRule').value = D.wallRule;
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
     document.getElementById('presetHint').textContent = hint;
-    refreshOutputs(); W = BASE * P.A; reset();
+    refreshOutputs(); W = BASE * P.A;
+    // a shared or saved setting carries its own course (or none)
+    clearCourse();
+    const loaded = o.course && decodeCourse(decodeURIComponent(o.course));
+    COURSE.name = loaded ? decodeURIComponent(o.courseName || '') || '読み込み' : '';
+    document.getElementById('courseTpl').value = loaded ? 'custom' : 'none';
+    courseChanged(false);
+    if (o.init) setInit(COURSE.hasStart || o.init !== 'start' ? o.init : 'spread');
+    reset();
   }
   // sharing as a URL (#N=300&A=2&...)
   function stateToUrl() {
     const o = currentState();
-    const q = Object.keys(o).map(k => k + '=' + (typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : o[k]));
+    const q = Object.keys(o).map(k => k + '=' + (typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : encodeURIComponent(o[k])));
     return location.href.split('#')[0] + '#' + q.join('&');
   }
   function stateFromUrl() {
@@ -1036,7 +1332,8 @@
   applyPreset('tidal1');
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
-  window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P };
+  window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, cellTypeAt };
 })();
 </script>
 </body>
