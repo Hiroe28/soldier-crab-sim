@@ -399,6 +399,37 @@
   let W = BASE;                        // current world size (square)
   const TAU = Math.PI * 2;
 
+  // ---------- deterministic maths ----------
+  // Math.sin / cos / atan2 / log return results that differ in the last digit between browser versions,
+  // and this simulation amplifies such differences into a different run. The versions below use only
+  // + - * / and sqrt, which every browser computes identically, so a shared link replays the same run.
+  const HALF_PI = Math.PI / 2;
+  function dsin(x) {
+    let y = x - TAU * Math.round(x / TAU);                       // into [-pi, pi]
+    if (y > HALF_PI) y = Math.PI - y; else if (y < -HALF_PI) y = -Math.PI - y;   // into [-pi/2, pi/2]
+    const z = y * y;
+    return y * (1 + z * (-1 / 6 + z * (1 / 120 + z * (-1 / 5040 + z * (1 / 362880 + z * (-1 / 39916800 + z * (1 / 6227020800
+      + z * (-1 / 1307674368000 + z * (1 / 355687428096000 + z * (-1 / 121645100408832000 + z * (1 / 51090942171709440000)))))))))));
+  }
+  function dcos(x) { return dsin(x + HALF_PI); }
+  function datanSmall(t) {                                        // |t| <= tan(pi/8)
+    const z = t * t; let sum = 1 / 49;                            // atan t = t * sum of (-1)^k z^k / (2k+1), k = 0..24
+    for (let k = 23; k >= 0; k--) sum = (k % 2 ? -1 : 1) / (2 * k + 1) + z * sum;
+    return t * sum;
+  }
+  function datan(v) {                                             // v >= 0
+    if (v > 1) return HALF_PI - datan(1 / v);
+    if (v > 0.41421356237309503) return Math.PI / 4 + datanSmall((v - 1) / (v + 1));
+    return datanSmall(v);
+  }
+  function datan2(y, x) {
+    if (x === 0 && y === 0) return 0;
+    const a = datan(Math.abs(y) / Math.abs(x)), r = x >= 0 ? a : Math.PI - a;
+    return y >= 0 ? r : -r;
+  }
+  function dhypot(x, y) { return Math.sqrt(x * x + y * y); }
+  window.crabSimMath = { dsin, dcos, datan2 };   // exposed for accuracy checks
+
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
@@ -492,7 +523,7 @@
   let seed = 1;
   function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   let rand = mulberry32(seed);
-  function gauss() { let u = 0, v = 0; while (u === 0) u = rand(); while (v === 0) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+  function gauss() { let t = 0; for (let k = 0; k < 12; k++) t += rand(); return t - 6; }   // close to normal, and identical in every browser
 
   // ---------- course: a grid of square cells painted onto the field ----------
   const FREE = 0, WALL = 1, START = 2, GOAL = 3;
@@ -527,12 +558,12 @@
   // 'slide': keep walking along the wall, in the wall direction closest to its heading.
   function hitWall(a, nx, ny) {
     if (a.state !== 0) return;
-    const hx = Math.cos(a.h), hy = Math.sin(a.h), into = hx * nx + hy * ny;
+    const hx = dcos(a.h), hy = dsin(a.h), into = hx * nx + hy * ny;
     if (into >= 0) return;                                   // not walking into the wall
     if (D.wallRule !== 'slide') { a.state = 1; a.remain = P.P * FPS; return; }
     let tx = hx - into * nx, ty = hy - into * ny;            // heading with the into-the-wall part removed
-    if (Math.hypot(tx, ty) < 0.05) { const sgn = rand() < 0.5 ? 1 : -1; tx = -ny * sgn; ty = nx * sgn; }   // straight on: pick a side
-    a.h = (Math.atan2(ty, tx) + TAU) % TAU;
+    if (dhypot(tx, ty) < 0.05) { const sgn = rand() < 0.5 ? 1 : -1; tx = -ny * sgn; ty = nx * sgn; }   // straight on: pick a side
+    a.h = (datan2(ty, tx) + TAU) % TAU;
   }
   // a crab is a circle, a wall cell is a square: push the crab out along the shortest way.
   // A walking crab that runs into a wall simply stops and (as after any step) picks its next direction.
@@ -705,7 +736,7 @@
     // 1. own motion
     for (const a of agents) {
       if (a.state === 0) {
-        a.x += Math.cos(a.h) * P.V; a.y += Math.sin(a.h) * P.V;
+        a.x += dcos(a.h) * P.V; a.y += dsin(a.h) * P.V;
         a.remain -= P.V;
         if (a.remain <= 0) { a.state = 1; a.remain = P.P * FPS; }
       } else if (a.state === 1) {
@@ -727,8 +758,8 @@
         if (dist2 >= d2 * d2 || dist2 === 0) continue;
         const dist = Math.sqrt(dist2);
 
-        const aTouches = a.state === 0 && (Math.cos(a.h) * dx + Math.sin(a.h) * dy) > 0;
-        const bTouches = b.state === 0 && (Math.cos(b.h) * -dx + Math.sin(b.h) * -dy) > 0;
+        const aTouches = a.state === 0 && (dcos(a.h) * dx + dsin(a.h) * dy) > 0;
+        const bTouches = b.state === 0 && (dcos(b.h) * -dx + dsin(b.h) * -dy) > 0;
         if (aTouches && bTouches && D.headon === 'merge') touches += headOn(a, b);
         else {
           if (aTouches) touches += touch(a, b);
@@ -790,7 +821,7 @@
     const cands = [];
     for (let k = 0; k < P.K; k++) {
       const ang = a.h + (rand() * 2 - 1) * alpha, len = d2 + rand() * Math.max(0, range - d2);
-      let x = a.x + Math.cos(ang) * len, y = a.y + Math.sin(ang) * len;
+      let x = a.x + dcos(ang) * len, y = a.y + dsin(ang) * len;
       let inside = x > r && x < W - r && y > r && y < W - r;
       if (D.boundary === 'wrap') { x = (x % W + W) % W; y = (y % W + W) % W; inside = true; }
       cands.push({ x, y, ang, len, ok: inside && cellTypeAt(x, y) !== WALL && !occupied(x, y, a, d2), ov: 0 });
@@ -800,7 +831,7 @@
     for (const b of agents) {
       if (b === a) continue;
       const [dx, dy] = disp(a.x, a.y, b.x, b.y);
-      if (dx * dx + dy * dy < (2 * range + d2) ** 2) near.push(b);
+      const reach = 2 * range + d2; if (dx * dx + dy * dy < reach * reach) near.push(b);
     }
     let best = 0;
     for (const c of cands) {
@@ -819,8 +850,8 @@
       let bd = Infinity;
       for (const b of near) {
         if (b.state !== 0 || !b.vacated) continue;
-        const [dx, dy] = disp(a.x, a.y, b.vacated.x, b.vacated.y), d = Math.hypot(dx, dy);
-        if (d >= d2 && d <= range && d < bd && !occupied(b.vacated.x, b.vacated.y, a, d2)) { bd = d; pick = { x: b.vacated.x, y: b.vacated.y, ang: Math.atan2(dy, dx), len: d }; }
+        const [dx, dy] = disp(a.x, a.y, b.vacated.x, b.vacated.y), d = dhypot(dx, dy);
+        if (d >= d2 && d <= range && d < bd && !occupied(b.vacated.x, b.vacated.y, a, d2)) { bd = d; pick = { x: b.vacated.x, y: b.vacated.y, ang: datan2(dy, dx), len: d }; }
       }
     }
     // in the model a move needs an overlap (degree >= 2); real crabs sometimes move alone, so with
@@ -854,8 +885,8 @@
   }
   // direction of wa*(unit a.h) + wb*(unit b.h); null if it cancels out
   function mergeHeading(ha, hb, wa, wb) {
-    const sx = wa * Math.cos(ha) + wb * Math.cos(hb), sy = wa * Math.sin(ha) + wb * Math.sin(hb);
-    return Math.hypot(sx, sy) < 1e-6 ? null : (Math.atan2(sy, sx) + TAU) % TAU;
+    const sx = wa * dcos(ha) + wb * dcos(hb), sy = wa * dsin(ha) + wb * dsin(hb);
+    return dhypot(sx, sy) < 1e-6 ? null : (datan2(sy, sx) + TAU) % TAU;
   }
   function headOn(a, b) {
     if (a.state === 2 || b.state === 2) return (a.state !== 2 ? touch(b, a) : 0) + (b.state !== 2 ? touch(a, b) : 0);
@@ -882,8 +913,8 @@
   function pushHist(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
   function polarization() {
     let cx = 0, cy = 0;
-    for (const a of agents) { cx += Math.cos(a.h); cy += Math.sin(a.h); }
-    return agents.length ? Math.hypot(cx, cy) / agents.length : 0;
+    for (const a of agents) { cx += dcos(a.h); cy += dsin(a.h); }
+    return agents.length ? dhypot(cx, cy) / agents.length : 0;
   }
   function largestClusterFrac() {
     const n = agents.length; if (!n) return 0;
@@ -891,7 +922,7 @@
     const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
       const [dx, dy] = disp(agents[i].x, agents[i].y, agents[j].x, agents[j].y);
-      const link = ((agents[i].r + agents[j].r) * 1.5) ** 2;
+      const lk = (agents[i].r + agents[j].r) * 1.5, link = lk * lk;
       if (dx * dx + dy * dy < link) { const a = find(i), b = find(j); if (a !== b) parent[a] = b; }
     }
     const size = new Map(); let best = 0;
@@ -1235,8 +1266,8 @@
     const [x, y] = toWorld(ev);
     const hand = { h: 0, state: 0, r: P.R };
     for (const a of agents) {
-      const dx = a.x - x, dy = a.y - y, d = Math.hypot(dx, dy);
-      if (d < P.R * 4) { hand.h = Math.atan2(dy, dx); if (a.state !== 2) { touch(hand, a); touchWindow.length && touchWindow[touchWindow.length - 1]++; } }
+      const dx = a.x - x, dy = a.y - y, d = dhypot(dx, dy);
+      if (d < P.R * 4) { hand.h = datan2(dy, dx); if (a.state !== 2) { touch(hand, a); touchWindow.length && touchWindow[touchWindow.length - 1]++; } }
     }
   }
 
@@ -1343,7 +1374,8 @@
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, cellTypeAt, exp: EXP };
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, cellTypeAt, exp: EXP,
+    get fingerprint() { let t = 0; for (const a of agents) t += a.x * 1.0001 + a.y * 0.9999 + a.h; return t; } };
 })();
 </script>
 </body>
