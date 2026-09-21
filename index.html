@@ -248,7 +248,7 @@
         <option value="wrap" selected>つながっている：右端から出ると左端へ（周期境界）</option>
         <option value="wall">壁：端で止まる</option>
       </select>
-      <div class="hint sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。</div>
+      <div class="hint sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。コースを置くと自動で「壁」に切り替わり、コースを消すと元に戻る（あとから変えられる）。</div>
     </div>
     <div class="row stack">
       <label for="pWallRule">壁に当たったら</label>
@@ -623,10 +623,16 @@
     reset();
   }
   function setInit(v) { D.init = v; document.getElementById('pInit').value = v; }
+  function setBoundary(v) { D.boundary = v; document.getElementById('pBoundary').value = v; }
+  let boundaryBeforeCourse = null;      // the edge setting in use before a course switched it to 'wall'
   // after any change to the grid: refresh flags and the bits of UI that depend on them
   function courseChanged(edited) {
     scanCourse();
     if (edited) { COURSE.name = COURSE.any ? '自作' : ''; document.getElementById('courseTpl').value = COURSE.any ? 'custom' : 'none'; evictFromWalls(); if (COURSE.hasStart && D.init !== 'start') setInit('start'); }
+    // a course needs solid field edges (otherwise crabs slip round obstacles through the wrap-around):
+    // switch the edge to 'wall' when a course appears, and give the old setting back when it is cleared
+    if (COURSE.any && boundaryBeforeCourse === null) { boundaryBeforeCourse = D.boundary; setBoundary('wall'); }
+    else if (!COURSE.any && boundaryBeforeCourse !== null) { setBoundary(boundaryBeforeCourse); boundaryBeforeCourse = null; }
     document.querySelector('#pInit option[value="start"]').disabled = !COURSE.hasStart;
     if (!COURSE.hasStart && D.init === 'start') setInit('spread');
     document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
@@ -1279,6 +1285,7 @@
     COURSE.name = loaded ? decodeURIComponent(o.courseName || '') || '読み込み' : '';
     document.getElementById('courseTpl').value = loaded ? 'custom' : 'none';
     courseChanged(false);
+    if (o.boundary === 'wall' || o.boundary === 'wrap') setBoundary(o.boundary);
     if (o.init) setInit(COURSE.hasStart || o.init !== 'start' ? o.init : 'spread');
     reset();
   }
