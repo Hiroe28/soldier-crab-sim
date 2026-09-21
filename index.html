@@ -370,7 +370,7 @@
       </tr></thead>
       <tbody></tbody>
     </table>
-    <div class="hint" style="margin-top:4px">値は「平均 ± 標準偏差」（試行間）。乱数の種は 1001 から順に使うので、同じ条件なら同じ結果になります。</div>
+    <div class="hint" style="margin-top:4px">値は「平均 ± 標準偏差」（試行間）。ゴール到達のかっこ内は試行ごとの最小〜最大。乱数の種は 1001 から順に使うので、同じ条件なら同じ結果になります。</div>
   </div>
 </section>
 
@@ -1146,7 +1146,8 @@
   function rowCells(r) {
     let goal = '—', half = '—';
     if (r.hasGoal) {
-      goal = fmtPct(r.per.map(x => x.goal));
+      const gs = r.per.map(x => x.goal * 100);
+      goal = fmtPct(r.per.map(x => x.goal)) + `（${Math.round(Math.min(...gs))}〜${Math.round(Math.max(...gs))}）`;
       const reached = r.per.map(x => x.t50).filter(v => isFinite(v));
       half = reached.length ? `${fmtNum(reached, 0)}秒（${reached.length}/${r.per.length}回）` : `未到達（0/${r.per.length}回）`;
     }
@@ -1265,10 +1266,12 @@
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
     o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; o.wallRule = D.wallRule;
+    o.seed = seed;                       // so a shared link replays the same run, not just the same settings
     const cs = encodeCourse(); if (cs) { o.course = cs; o.courseName = COURSE.name; }
     return o;
   }
   function applyState(o, hint) {
+    if (o.seed !== undefined && isFinite(+o.seed)) seed = Math.max(1, Math.floor(+o.seed));
     for (const k of SHARE_KEYS) if (k in o) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? (o[k] === true || o[k] === '1' || o[k] === 1) : +o[k];
     if (o.init) { D.init = o.init; document.getElementById('pInit').value = D.init; }
     if (o.headon) { D.headon = o.headon; document.getElementById('pHeadon').value = D.headon; }
@@ -1340,7 +1343,7 @@
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, cellTypeAt };
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, cellTypeAt, exp: EXP };
 })();
 </script>
 </body>
