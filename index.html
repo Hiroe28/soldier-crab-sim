@@ -20,6 +20,7 @@
     --wall: #8f8778;
     --start: #1baf7a;
     --goal: #eb6834;
+    --moat: #2a78d6;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -28,7 +29,7 @@
       --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
       --accent: #3987e5; --accent-2: #d95926;
       --sand: #2a2620; --grid: #35302a;
-      --wall: #6f695d; --start: #199e70; --goal: #d95926;
+      --wall: #6f695d; --start: #199e70; --goal: #d95926; --moat: #3987e5;
     }
   }
   * { box-sizing: border-box; }
@@ -75,6 +76,7 @@
   .coursebar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 13px; color: var(--ink-2); }
   .coursebar .tools { display: inline-flex; gap: 4px; }
   .coursebar button.tool.on, #btnEdit[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  .coursebar input[type=number] { width: 4em; font: inherit; font-size: 13px; padding: 3px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
   .coursebar .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
   canvas#arena.editing { cursor: crosshair; }
   .sethint { font-size: 11px; color: var(--ink-3); line-height: 1.4; margin: -4px 0 8px; }
@@ -142,6 +144,7 @@
         <option value="zigzag">ジグザグ</option>
         <option value="tee">T字路</option>
         <option value="neck">狭い出口</option>
+        <option value="moat">濠で囲む</option>
         <option value="custom" hidden>（自分で編集）</option>
       </select></label>
       <button id="btnEdit" aria-pressed="false">コースを編集</button>
@@ -149,18 +152,20 @@
         <button class="tool on" data-tool="wall"><i class="sw" style="background:var(--wall)"></i>壁</button>
         <button class="tool" data-tool="start"><i class="sw" style="background:var(--start)"></i>スタート</button>
         <button class="tool" data-tool="goal"><i class="sw" style="background:var(--goal)"></i>ゴール</button>
+        <button class="tool" data-tool="moat"><i class="sw" style="background:var(--moat)"></i>濠</button>
         <button class="tool" data-tool="erase">消しゴム</button>
       </span>
+      <label id="moatThrWrap" hidden>濠の閾値 <input id="moatThr" type="number" min="1" max="999" value="20"></label>
       <label id="cellWrap" hidden>マスの大きさ <select id="courseCell"><option>25</option><option selected>50</option><option>100</option></select></label>
       <button id="btnCourseClear" hidden>すべて消す</button>
     </div>
-    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。広さかマスの大きさを変えるとコースは消えます。</div>
+    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。濠は、塗ったときの閾値をマスごとに持ちます（編集モードでないときに閾値を変えると、すべての濠のマスに適用されます）。広さかマスの大きさを変えるとコースは消えます。</div>
     <canvas id="arena" width="600" height="600" aria-label="シミュレーション画面"></canvas>
     <div class="legend">
       <span id="legColor"><i style="background: conic-gradient(hsl(0 60% 50%), hsl(90 60% 50%), hsl(180 60% 50%), hsl(270 60% 50%), hsl(360 60% 50%))"></i>色＝個体（同じ色は同じ個体）、ハサミと目のある側が前</span>
       <span><i style="background: transparent; border: 2px solid var(--ink-3)"></i>止まっている</span>
       <span><i style="background: transparent; border: 2px solid var(--ink)"></i>触られて向きを合わせ中</span>
-      <span id="legCourse" hidden><i style="background: var(--wall); border-radius: 2px"></i>壁　S＝スタート　G＝ゴール</span>
+      <span id="legCourse" hidden><i style="background: var(--wall); border-radius: 2px"></i>壁　S＝スタート　G＝ゴール　<i style="background: var(--moat); opacity:.5; border-radius: 2px"></i>濠（数字は閾値）</span>
       <span>個体をタップすると追跡（もう一度で解除）。空いた場所をタップすると手で触る。ドラッグで移動、ホイールか「拡大」で寄る</span>
     </div>
     <div class="tiles">
@@ -193,6 +198,12 @@
         <div class="value" id="vGoal">0%</div>
         <canvas id="cGoal"></canvas>
         <div class="hint" id="hGoal">一度でもゴールのマスに入った個体の割合。</div>
+      </div>
+      <div class="tile wide" id="tileMoat" hidden>
+        <div class="label">濠に入った割合</div>
+        <div class="value" id="vMoat">0%</div>
+        <canvas id="cMoat"></canvas>
+        <div class="hint" id="hMoat">一度でも濠のマスに入れた個体の割合。</div>
       </div>
     </div>
   </section>
@@ -257,6 +268,14 @@
         <option value="slide">壁に沿って進む</option>
       </select>
       <div class="hint sethint">フィールドの端の壁とコースの壁の両方に効く。「止まる」は規則を足さない既定。壁際にたまりやすい。「沿って進む」は、向きのうち壁に向かう成分だけを捨てて歩き続ける。</div>
+    </div>
+    <div class="row stack">
+      <label for="pMoatRule">濠の判定</label>
+      <select id="pMoatRule">
+        <option value="entry">入る瞬間だけ</option>
+        <option value="each">濠の中でも一歩ごと</option>
+      </select>
+      <div class="hint sethint">濠のマスには、カニの値（連続して触れられた回数）が閾値以上のときだけ入れる。値は「触れられた回数で重みづけ（履歴）」がオンのときだけ数える。「一歩ごと」では、濠の中で値が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
     </div>
 
     <h2>個体</h2>
@@ -326,6 +345,7 @@
       <select id="pColor">
         <option value="id">個体ごとに固定</option>
         <option value="heading">進行方向</option>
+        <option value="value">カニの値（連続して触れられた回数）</option>
       </select>
       <div class="hint sethint">個体ごとの色にすると同じ個体を追いやすい。進行方向にすると向きの揃い方が見える。</div>
     </div>
@@ -367,6 +387,7 @@
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">接触/5秒</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">ゴール到達</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">半数到達まで</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">濠に入った / 立ち往生</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -387,6 +408,7 @@
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
+    <li><b>濠</b>：閾値つきのマス。カニの値（連続して触れられた回数。「履歴」がオンのときだけ数え、オフなら常に0）が閾値以上のときだけ入れる。「濠の判定」が「入る瞬間だけ」なら、入ったあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、値が足りなければ次に触れられるまで動けない（立ち往生）。濠に入れないカニには、濠は壁と同じ。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
 </section>
@@ -492,10 +514,11 @@
     document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
-  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wrap', turn: 'uniform', wallRule: 'stop' };
+  const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wrap', turn: 'uniform', wallRule: 'stop', moatRule: 'entry' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
+    value: '色＝カニの値（連続して触れられた回数）。薄い灰青が0、赤に近いほど大きい（40以上で最も濃い）',
   };
   document.getElementById('pColor').addEventListener('change', e => {
     D.color = e.target.value;
@@ -510,6 +533,7 @@
   document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; });
   document.getElementById('pTurn').addEventListener('change', e => { D.turn = e.target.value; });
   document.getElementById('pWallRule').addEventListener('change', e => { D.wallRule = e.target.value; });
+  document.getElementById('pMoatRule').addEventListener('change', e => { D.moatRule = e.target.value; });
   const zoomEl = document.getElementById('pZoom');
   function setZoom(z) {
     D.zoom = Math.min(+zoomEl.max, Math.max(+zoomEl.min, z));
@@ -526,25 +550,42 @@
   function gauss() { let t = 0; for (let k = 0; k < 12; k++) t += rand(); return t - 6; }   // close to normal, and identical in every browser
 
   // ---------- course: a grid of square cells painted onto the field ----------
-  const FREE = 0, WALL = 1, START = 2, GOAL = 3;
-  const COURSE = { cell: 50, n: 0, cells: new Uint8Array(0), any: false, hasStart: false, hasGoal: false, startCells: [], name: '' };
+  const FREE = 0, WALL = 1, START = 2, GOAL = 3, MOAT = 4;
+  const COURSE = { cell: 50, n: 0, cells: new Uint8Array(0), thr: new Uint16Array(0), any: false, hasStart: false, hasGoal: false, hasMoat: false, startCells: [], name: '' };
+  let enteredCount = 0, stuckCount = 0;    // crabs that have ever entered a moat cell; crabs stuck in a moat right now
   const EDIT = { on: false, tool: 'wall', painting: false, last: null };
   let arrivedCount = 0, t50 = null;     // crabs that have reached a goal cell; step at which half had arrived
   function ensureCourse() {             // (re)build an empty grid when the field or cell size changed
     const n = Math.round(W / COURSE.cell);
     if (n === COURSE.n && COURSE.cells.length === n * n) return false;
-    COURSE.n = n; COURSE.cells = new Uint8Array(n * n); COURSE.name = ''; scanCourse();
+    COURSE.n = n; COURSE.cells = new Uint8Array(n * n); COURSE.thr = new Uint16Array(n * n); COURSE.name = ''; scanCourse();
     return true;
   }
   function scanCourse() {
-    COURSE.any = COURSE.hasStart = COURSE.hasGoal = false; COURSE.startCells = [];
+    COURSE.any = COURSE.hasStart = COURSE.hasGoal = COURSE.hasMoat = false; COURSE.startCells = [];
     const c = COURSE.cells;
     for (let k = 0; k < c.length; k++) {
       if (c[k]) COURSE.any = true;
       if (c[k] === START) { COURSE.hasStart = true; COURSE.startCells.push(k); }
       if (c[k] === GOAL) COURSE.hasGoal = true;
+      if (c[k] === MOAT) COURSE.hasMoat = true;
     }
   }
+  function moatThresholds() {           // e.g. "20" or "10,20" for the condition summary
+    const set = new Set(); for (let k = 0; k < COURSE.cells.length; k++) if (COURSE.cells[k] === MOAT) set.add(COURSE.thr[k]);
+    return [...set].sort((a, b) => a - b).join(',');
+  }
+  // the value a crab brings to a moat: its run of consecutive touches, counted only while 履歴 is on
+  function crabValue(a) { return P.history ? a.touched : 0; }
+  function cellIndexAt(x, y) {
+    const n = COURSE.n; if (!n) return -1;
+    let i = Math.floor(x / COURSE.cell), j = Math.floor(y / COURSE.cell);
+    if (D.boundary === 'wrap') { i = ((i % n) + n) % n; j = ((j % n) + n) % n; }
+    else if (i < 0 || j < 0 || i >= n || j >= n) return -1;
+    return j * n + i;
+  }
+  // can this crab be inside the moat cell k?  Entry rule: anyone already in a moat may stay; each-step rule: value must hold
+  function moatOpen(a, k) { return crabValue(a) >= COURSE.thr[k]; }
   // cell type under a world point (periodic fields wrap; outside a walled field counts as free)
   function cellTypeAt(x, y) {
     const n = COURSE.n; if (!COURSE.any || !n) return FREE;
@@ -575,7 +616,11 @@
       let ii = i, jj = j;
       if (wrap) { ii = ((i % n) + n) % n; jj = ((j % n) + n) % n; }
       else if (i < 0 || j < 0 || i >= n || j >= n) continue;
-      if (COURSE.cells[jj * n + ii] !== WALL) continue;
+      const type = COURSE.cells[jj * n + ii];
+      if (type === MOAT) {
+        if (moatOpen(a, jj * n + ii)) continue;                              // value high enough: the moat is open ground
+        if (D.moatRule === 'entry' && a.inMoat) continue;                    // entry rule: once inside, free to move about
+      } else if (type !== WALL) continue;
       const x0 = i * c, y0 = j * c, x1 = x0 + c, y1 = y0 + c;
       const px = Math.max(x0, Math.min(a.x, x1)), py = Math.max(y0, Math.min(a.y, y1));
       const dx = a.x - px, dy = a.y - py, d2 = dx * dx + dy * dy;
@@ -608,34 +653,42 @@
     }
   }
   // text form used by shared links and saved settings: "<cell>_<n>_<run-length codes>", o=free w=wall s=start g=goal
+  // text form used by shared links and saved settings: "<cell>_<n>_<run-length codes>",
+  // o=free w=wall s=start g=goal, and m<threshold>. for a moat cell (e.g. "6m20." = six moat cells, threshold 20)
   function encodeCourse() {
     if (!COURSE.any) return '';
-    const ch = 'owsg', c = COURSE.cells; let out = '', run = 0, prev = -1;
+    const c = COURSE.cells, th = COURSE.thr; let out = '', run = 0, prev = null;
+    const code = k => c[k] === MOAT ? 'm' + th[k] + '.' : 'owsg'[c[k]];
     for (let k = 0; k <= c.length; k++) {
-      const t = k < c.length ? c[k] : -2;
+      const t = k < c.length ? code(k) : null;
       if (t === prev) run++;
-      else { if (prev >= 0) out += (run > 1 ? run : '') + ch[prev]; prev = t; run = 1; }
+      else { if (prev !== null) out += (run > 1 ? run : '') + prev; prev = t; run = 1; }
     }
     return COURSE.cell + '_' + COURSE.n + '_' + out;
   }
   function decodeCourse(str) {
-    const m = /^(\d+)_(\d+)_([0-9owsg]+)$/.exec(String(str || '')); if (!m) return false;
+    const m = /^(\d+)_(\d+)_([0-9owsgm.]+)$/.exec(String(str || '')); if (!m) return false;
     const cell = +m[1], n = +m[2]; if (![25, 50, 100].includes(cell) || n !== Math.round(W / cell)) return false;
-    const cells = new Uint8Array(n * n); let k = 0;
-    for (const t of m[3].matchAll(/(\d*)([owsg])/g)) { const cnt = +(t[1] || 1), v = 'owsg'.indexOf(t[2]); for (let q = 0; q < cnt && k < cells.length; q++) cells[k++] = v; }
-    COURSE.cell = cell; COURSE.n = n; COURSE.cells = cells; scanCourse();
+    const cells = new Uint8Array(n * n), thr = new Uint16Array(n * n); let k = 0;
+    for (const t of m[3].matchAll(/(\d*)(?:([owsg])|m(\d+)\.)/g)) {
+      const cnt = +(t[1] || 1), v = t[2] ? 'owsg'.indexOf(t[2]) : MOAT, h = t[3] ? +t[3] : 0;
+      for (let q = 0; q < cnt && k < cells.length; q++) { cells[k] = v; thr[k] = h; k++; }
+    }
+    COURSE.cell = cell; COURSE.n = n; COURSE.cells = cells; COURSE.thr = thr; scanCourse();
     document.getElementById('courseCell').value = String(cell);
     return true;
   }
   function clearCourse() { COURSE.n = 0; ensureCourse(); COURSE.name = ''; }
   // ready-made courses, drawn on a 24 x 24 plan and scaled to the current grid. Everything starts as wall.
   function carve(g, c0, r0, c1, r1, t) { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) g[r][c] = t || FREE; }
+  function currentThreshold() { return Math.max(1, Math.min(999, Math.round(+document.getElementById('moatThr').value || 20))); }
   const TEMPLATES = {
     straight: ['一本道', g => { carve(g, 1, 8, 6, 15, START); carve(g, 7, 10, 16, 13); carve(g, 17, 8, 22, 15, GOAL); }],
     bend:     ['L字', g => { carve(g, 1, 15, 6, 22, START); carve(g, 7, 17, 18, 20); carve(g, 15, 7, 18, 16); carve(g, 11, 1, 22, 6, GOAL); }],
     zigzag:   ['ジグザグ', g => { carve(g, 1, 8, 5, 15, START); carve(g, 6, 10, 10, 13); carve(g, 7, 3, 10, 9); carve(g, 11, 3, 16, 6); carve(g, 13, 7, 16, 20); carve(g, 17, 17, 18, 20); carve(g, 19, 14, 22, 22, GOAL); }],
     tee:      ['T字路', g => { carve(g, 8, 17, 15, 22, START); carve(g, 10, 12, 13, 16); carve(g, 5, 8, 18, 11); carve(g, 1, 4, 4, 15, GOAL); carve(g, 19, 4, 22, 15, GOAL); }],
     neck:     ['狭い出口', g => { carve(g, 1, 3, 10, 20, START); carve(g, 11, 11, 12, 12); carve(g, 13, 3, 22, 20, GOAL); }],
+    moat:     ['濠で囲む', g => { carve(g, 0, 0, 23, 23, GOAL); carve(g, 6, 6, 17, 17, MOAT); carve(g, 8, 8, 15, 15, START); }],
   };
   function applyTemplate(key) {
     clearCourse();
@@ -643,8 +696,11 @@
       const g = Array.from({ length: 24 }, () => new Array(24).fill(WALL));
       TEMPLATES[key][1](g);
       const n = COURSE.n;
-      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++)
-        COURSE.cells[j * n + i] = g[Math.min(23, Math.floor((j + 0.5) * 24 / n))][Math.min(23, Math.floor((i + 0.5) * 24 / n))];
+      const thr = currentThreshold();
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+        const v = g[Math.min(23, Math.floor((j + 0.5) * 24 / n))][Math.min(23, Math.floor((i + 0.5) * 24 / n))];
+        COURSE.cells[j * n + i] = v; COURSE.thr[j * n + i] = v === MOAT ? thr : 0;
+      }
       COURSE.name = TEMPLATES[key][0];
     }
     document.getElementById('courseTpl').value = TEMPLATES[key] ? key : 'none';
@@ -667,7 +723,10 @@
     document.querySelector('#pInit option[value="start"]').disabled = !COURSE.hasStart;
     if (!COURSE.hasStart && D.init === 'start') setInit('spread');
     document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
+    document.getElementById('tileMoat').hidden = !COURSE.hasMoat;
+    document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
     document.getElementById('legCourse').hidden = !COURSE.any;
+    if (!COURSE.hasMoat) { enteredCount = 0; stuckCount = 0; for (const a of agents) { a.inMoat = false; a.entered = false; } }
     if (!COURSE.hasGoal) { arrivedCount = 0; t50 = null; for (const a of agents) a.arrived = false; }
   }
 
@@ -688,11 +747,11 @@
       else { x = rand() * W; y = rand() * W; }
       if (cellTypeAt(x, y) !== WALL) break;          // never start inside a wall
     }
-    return { id: i, x, y, h, hNext: h, r: randomRadius(), state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false, arrived: false };
+    return { id: i, x, y, h, hNext: h, r: randomRadius(), state: 1, remain: rand() * P.P * FPS, flash: 0, trail: [], cands: [], vacated: null, touched: 0, touchedLately: false, arrived: false, inMoat: false, entered: false };
   }
   function reset() {
     if (ensureCourse()) { document.getElementById('courseTpl').value = 'none'; courseChanged(false); }   // field size changed: the course is gone
-    rand = mulberry32(seed); agents = []; arrivedCount = 0; t50 = null;
+    rand = mulberry32(seed); agents = []; arrivedCount = 0; t50 = null; enteredCount = 0; stuckCount = 0;
     for (let i = 0; i < P.N; i++) agents.push(makeAgent(i));
     evictFromWalls();
     selected = -1; cam.x = W / 2; cam.y = W / 2; resetStats();
@@ -701,10 +760,11 @@
     while (agents.length < P.N) agents.push(makeAgent(agents.length));
     agents.length = Math.min(agents.length, P.N);
     if (selected >= agents.length) selected = -1;
-    arrivedCount = agents.filter(a => a.arrived).length;
+    arrivedCount = agents.filter(a => a.arrived).length; enteredCount = agents.filter(a => a.entered).length;
   }
   function agentColor(a) {
     if (D.color === 'heading') return `hsl(${a.h * 180 / Math.PI} 65% 50%)`;
+    if (D.color === 'value') { const v = Math.min(1, a.touched / 40); return `hsl(${215 - 200 * v} ${35 + 50 * v}% ${72 - 40 * v}%)`; }   // grey-blue (0) to deep red (40+)
     return `hsl(${(a.id * 137.508) % 360} 60% ${48 + (a.id % 3) * 6}%)`;
   }
   // turn at a stop: by default a uniform random angle in [-S, +S]; optionally normal with SD = S
@@ -716,10 +776,10 @@
 
   // ---------- stats ----------
   const HIST = 240;
-  const hist = { phi: [], clu: [], grp: [], touch: [], goal: [] };
+  const hist = { phi: [], clu: [], grp: [], touch: [], goal: [], moat: [] };
   let touchWindow = [];                // per-step touch counts for the last 5 s
   let stepCount = 0;
-  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; touchWindow = []; stepCount = 0; }
+  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; hist.moat = []; touchWindow = []; stepCount = 0; }
 
   // displacement from (x1,y1) to (x2,y2); with periodic boundaries the shortest image is used
   function disp(x1, y1, x2, y2) {
@@ -740,9 +800,9 @@
         a.remain -= P.V;
         if (a.remain <= 0) { a.state = 1; a.remain = P.P * FPS; }
       } else if (a.state === 1) {
-        if (--a.remain <= 0) decide(a, 2 * a.r);
+        if (--a.remain <= 0) { if (moatHolds(a)) a.remain = Math.max(1, P.P * FPS); else decide(a, 2 * a.r); }
       } else {
-        if (--a.remain <= 0) { a.h = a.hNext; a.state = 0; a.remain = P.L * 2 * a.r; }
+        if (--a.remain <= 0) { a.h = a.hNext; if (moatHolds(a)) { a.state = 1; a.remain = Math.max(1, P.P * FPS); } else { a.state = 0; a.remain = P.L * 2 * a.r; } }
       }
       if (a.flash > 0) a.flash--;
     }
@@ -790,6 +850,16 @@
         a.arrived = true; arrivedCount++;
         if (t50 === null && arrivedCount * 2 >= agents.length) t50 = stepCount + 1;
       }
+      if (COURSE.hasMoat) {
+        let stuck = 0;
+        for (const a of agents) {
+          const k = cellIndexAt(a.x, a.y), inM = k >= 0 && COURSE.cells[k] === MOAT;
+          if (inM && !a.entered) { a.entered = true; enteredCount++; }
+          a.inMoat = inM;
+          if (inM && D.moatRule === 'each' && !moatOpen(a, k)) stuck++;
+        }
+        stuckCount = stuck;
+      }
     }
 
     // 4. stats
@@ -802,7 +872,19 @@
       pushHist(hist.clu, cl.largest); pushHist(hist.grp, cl.grouped);
       pushHist(hist.touch, touchWindow.reduce((s, v) => s + v, 0));
       if (COURSE.hasGoal) pushHist(hist.goal, agents.length ? arrivedCount / agents.length : 0);
+      if (COURSE.hasMoat) pushHist(hist.moat, agents.length ? enteredCount / agents.length : 0);
     }
+  }
+  // 濠の中でも一歩ごと: a crab standing in a moat cell whose value is below the threshold cannot set off.
+  // It stays put until touches raise its value again (立ち往生). The decide() call it skipped would have
+  // reset its count, so do that part here to keep the 履歴 rule intact.
+  function moatHolds(a) {
+    if (D.moatRule !== 'each' || !COURSE.hasMoat) return false;
+    const k = cellIndexAt(a.x, a.y);
+    if (k < 0 || COURSE.cells[k] !== MOAT) return false;
+    if (!a.touchedLately) a.touched = 0;
+    a.touchedLately = false;
+    return !moatOpen(a, k);
   }
   // toucher t touches victim v. Returns 1 if a new "touched" event happened.
   // ---- deciding the next step ----
@@ -971,13 +1053,13 @@
       const c = COURSE.cell, n = COURSE.n, cells = COURSE.cells;
       const i0 = Math.max(0, Math.floor(vx0 / c)), i1 = Math.min(n - 1, Math.floor(vx1 / c));
       const j0 = Math.max(0, Math.floor(vy0 / c)), j1 = Math.min(n - 1, Math.floor(vy1 / c));
-      const cols = [null, css('--wall'), css('--start'), css('--goal')], letters = c * s >= 12;
+      const cols = [null, css('--wall'), css('--start'), css('--goal'), css('--moat')], letters = c * s >= 12;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `600 ${c * 0.42}px system-ui, sans-serif`;
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
         const t = cells[j * n + i]; if (!t) continue;
-        ctx.fillStyle = cols[t]; ctx.globalAlpha = t === WALL ? 1 : 0.22;
+        ctx.fillStyle = cols[t]; ctx.globalAlpha = t === WALL ? 1 : t === MOAT ? 0.35 : 0.22;
         ctx.fillRect(i * c, j * c, c + 0.6 / s, c + 0.6 / s);
-        if (t !== WALL && letters) { ctx.globalAlpha = 0.45; ctx.fillText(t === START ? 'S' : 'G', (i + 0.5) * c, (j + 0.55) * c); }
+        if (t !== WALL && letters) { ctx.globalAlpha = 0.55; ctx.fillText(t === START ? 'S' : t === GOAL ? 'G' : String(COURSE.thr[j * n + i]), (i + 0.5) * c, (j + 0.55) * c); }
       }
       ctx.globalAlpha = 1;
       if (EDIT.on) {
@@ -1067,6 +1149,8 @@
       const a = agents[selected];
       ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 3, 0, TAU);
       ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = ink; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.font = `600 ${Math.max(9, a.r * 1.6)}px system-ui, sans-serif`;
+      ctx.fillText('値 ' + a.touched, a.x + a.r * 3.2, a.y - a.r * 1.5);
     }
     // when zoomed in, an overview in the corner shows the whole field and where the window is
     if (D.zoom > 1) {
@@ -1078,7 +1162,7 @@
       ctx.fillStyle = css('--sand'); ctx.fillRect(ox, oy, size, size);
       if (COURSE.any) {
         const c = COURSE.cell, n = COURSE.n; ctx.fillStyle = css('--wall');
-        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (COURSE.cells[j * n + i] === WALL) ctx.fillRect(ox + i * c * k, oy + j * c * k, c * k + 0.5, c * k + 0.5);
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const t = COURSE.cells[j * n + i]; if (t === WALL || t === MOAT) { ctx.fillStyle = css(t === WALL ? '--wall' : '--moat'); ctx.fillRect(ox + i * c * k, oy + j * c * k, c * k + 0.5, c * k + 0.5); } }
       }
       ctx.strokeStyle = ink3; ctx.lineWidth = 1 * dpr; ctx.strokeRect(ox, oy, size, size);
       for (const a of agents) {
@@ -1121,13 +1205,19 @@
       document.getElementById('hGoal').textContent = `一度でもゴールのマスに入った個体の割合。経過 ${Math.floor(stepCount / FPS)}秒、半数到達：${t50 === null ? 'まだ' : Math.round(t50 / FPS) + '秒'}`;
       drawSpark('cGoal', hist.goal, 1, css('--accent'));
     }
+    if (COURSE.hasMoat) {
+      const n = agents.length || 1;
+      document.getElementById('vMoat').textContent = Math.round(enteredCount / n * 100) + '%';
+      document.getElementById('hMoat').textContent = `一度でも濠のマスに入れた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '') + (P.history ? '' : '　※履歴がオフなので値は常に0で、濠には入れません');
+      drawSpark('cMoat', hist.moat, 1, css('--accent'));
+    }
   }
 
   // ---------- comparison experiments: run the current setting for several seeds, no drawing ----------
   const EXP = { rows: [], cancel: false };
   const expEl = id => document.getElementById(id);
   function summarizeCondition() {
-    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
+    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''}${COURSE.hasMoat ? ' 濠' + moatThresholds() + (D.moatRule === 'each' ? '(一歩ごと)' : '(入口)') : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
     if (COURSE.any) c += ` | コース:${COURSE.name || '自作'}`;
     if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
     return c;
@@ -1141,14 +1231,14 @@
     const trials = Math.max(1, Math.min(30, +expEl('expTrials').value || 5));
     const secs = Math.max(30, Math.min(600, +expEl('expSecs').value || 120));
     const name = expEl('expName').value.trim() || ('条件' + (EXP.rows.length + 1));
-    const saved = { agents, seed, rand, hist: { ...hist }, touchWindow, stepCount, selected, running, arrivedCount, t50 };
+    const saved = { agents, seed, rand, hist: { ...hist }, touchWindow, stepCount, selected, running, arrivedCount, t50, enteredCount, stuckCount };
     running = false; EXP.cancel = false;
     expEl('btnExp').disabled = true; expEl('btnExpCancel').hidden = false;
     const total = secs * FPS, windowStart = Math.max(0, total - 30 * FPS);
     const per = [];
     for (let t = 1; t <= trials && !EXP.cancel; t++) {
       seed = 1000 + t; reset();
-      const acc = { grp: 0, clu: 0, phi: 0, touch: 0, n: 0 };
+      const acc = { grp: 0, clu: 0, phi: 0, touch: 0, stuck: 0, n: 0 };
       for (let k = 0; k < total && !EXP.cancel;) {
         const chunkEnd = Math.min(total, k + 90);
         for (; k < chunkEnd; k++) {
@@ -1156,20 +1246,21 @@
           if (k >= windowStart && k % 6 === 0) {
             const c = largestClusterFrac();
             acc.grp += c.grouped; acc.clu += c.largest; acc.phi += polarization();
-            acc.touch += touchWindow.reduce((s2, v) => s2 + v, 0); acc.n++;
+            acc.touch += touchWindow.reduce((s2, v) => s2 + v, 0); acc.stuck += agents.length ? stuckCount / agents.length : 0; acc.n++;
           }
         }
         expEl('expStatus').textContent = `実験中 ${t}/${trials} 回目（${Math.round(k / total * 100)}%）`;
         await new Promise(r => setTimeout(r, 0));
       }
       if (!EXP.cancel && acc.n) per.push({ grp: acc.grp / acc.n, clu: acc.clu / acc.n, phi: acc.phi / acc.n, touch: acc.touch / acc.n,
-        goal: agents.length ? arrivedCount / agents.length : 0, t50: t50 === null ? NaN : t50 / FPS });
+        goal: agents.length ? arrivedCount / agents.length : 0, t50: t50 === null ? NaN : t50 / FPS,
+        moat: agents.length ? enteredCount / agents.length : 0, stuck: acc.stuck / acc.n });
     }
     agents = saved.agents; seed = saved.seed; rand = saved.rand; Object.assign(hist, saved.hist);
     touchWindow = saved.touchWindow; stepCount = saved.stepCount; selected = saved.selected; running = saved.running;
-    arrivedCount = saved.arrivedCount; t50 = saved.t50;
+    arrivedCount = saved.arrivedCount; t50 = saved.t50; enteredCount = saved.enteredCount; stuckCount = saved.stuckCount;
     expEl('btnExp').disabled = false; expEl('btnExpCancel').hidden = true;
-    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per, hasGoal: COURSE.hasGoal }); renderExp(); }
+    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per, hasGoal: COURSE.hasGoal, hasMoat: COURSE.hasMoat }); renderExp(); }
     expEl('expStatus').textContent = EXP.cancel ? '中止しました' : `完了（${per.length}回 × ${secs}秒）`;
   }
   function fmtPct(arr) { const [m, sd] = meanSd(arr); return `${(m * 100).toFixed(1)} ± ${(sd * 100).toFixed(1)}%`; }
@@ -1182,8 +1273,9 @@
       const reached = r.per.map(x => x.t50).filter(v => isFinite(v));
       half = reached.length ? `${fmtNum(reached, 0)}秒（${reached.length}/${r.per.length}回）` : `未到達（0/${r.per.length}回）`;
     }
+    const moat = r.hasMoat ? `${fmtPct(r.per.map(x => x.moat))} / ${fmtPct(r.per.map(x => x.stuck))}` : '—';
     return [r.name, r.cond, `${r.trials}×${r.secs}秒`,
-      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half];
+      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half, moat];
   }
   function renderExp() {
     const tb = expEl('expTable').querySelector('tbody'); tb.innerHTML = '';
@@ -1197,7 +1289,7 @@
   expEl('btnExpCancel').addEventListener('click', () => { EXP.cancel = true; });
   expEl('btnExpClear').addEventListener('click', () => { if (!EXP.rows.length || confirm('表を消しますか')) { EXP.rows = []; renderExp(); } });
   expEl('btnExpCopy').addEventListener('click', async e => {
-    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで'];
+    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠に入った/立ち往生'];
     const tsv = [head, ...EXP.rows.map(rowCells)].map(r => r.join('\t')).join('\n');
     try { await navigator.clipboard.writeText(tsv); e.target.textContent = 'コピーしました'; }
     catch { window.prompt('コピーしてください', tsv); }
@@ -1220,11 +1312,11 @@
   let drag = null;
   function paintFromEvent(ev) {
     const [x, y] = toWorld(ev), c = COURSE.cell, n = COURSE.n;
-    const type = { wall: WALL, start: START, goal: GOAL, erase: FREE }[EDIT.tool];
+    const type = { wall: WALL, start: START, goal: GOAL, moat: MOAT, erase: FREE }[EDIT.tool], thr = currentThreshold();
     const from = EDIT.last || [x, y], steps = Math.max(1, Math.ceil(Math.hypot(x - from[0], y - from[1]) / (c / 2)));
     for (let q = 0; q <= steps; q++) {
       const i = Math.floor((from[0] + (x - from[0]) * q / steps) / c), j = Math.floor((from[1] + (y - from[1]) * q / steps) / c);
-      if (i >= 0 && j >= 0 && i < n && j < n) COURSE.cells[j * n + i] = type;
+      if (i >= 0 && j >= 0 && i < n && j < n) { COURSE.cells[j * n + i] = type; COURSE.thr[j * n + i] = type === MOAT ? thr : 0; }
     }
     EDIT.last = [x, y]; scanCourse();
   }
@@ -1275,6 +1367,7 @@
   document.getElementById('btnEdit').addEventListener('click', e => {
     EDIT.on = !EDIT.on; e.currentTarget.setAttribute('aria-pressed', EDIT.on); e.currentTarget.textContent = EDIT.on ? '編集を終える' : 'コースを編集';
     for (const id of ['courseTools', 'cellWrap', 'btnCourseClear', 'courseHint']) document.getElementById(id).hidden = !EDIT.on;
+    document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
     arena.classList.toggle('editing', EDIT.on);
     if (EDIT.on) { selected = -1; ensureCourse(); }
   });
@@ -1283,6 +1376,11 @@
     for (const o of document.querySelectorAll('.coursebar .tool')) o.classList.toggle('on', o === b);
   });
   document.getElementById('courseTpl').addEventListener('change', e => { if (e.target.value !== 'custom') applyTemplate(e.target.value); });
+  document.getElementById('moatThr').addEventListener('change', () => {
+    if (EDIT.on || !COURSE.hasMoat) return;                 // while editing it only affects what is painted next
+    const thr = currentThreshold();
+    for (let k = 0; k < COURSE.cells.length; k++) if (COURSE.cells[k] === MOAT) COURSE.thr[k] = thr;
+  });
   document.getElementById('courseCell').addEventListener('change', e => {
     COURSE.cell = +e.target.value; document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
   });
@@ -1296,7 +1394,7 @@
   const SHARE_KEYS = ['N','A','R','Rmin','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
-    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; o.wallRule = D.wallRule;
+    o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; o.wallRule = D.wallRule; o.moatRule = D.moatRule;
     o.seed = seed;                       // so a shared link replays the same run, not just the same settings
     const cs = encodeCourse(); if (cs) { o.course = cs; o.courseName = COURSE.name; }
     return o;
@@ -1309,6 +1407,7 @@
     if (o.boundary) { D.boundary = o.boundary; document.getElementById('pBoundary').value = D.boundary; }
     if (o.turn) { D.turn = o.turn; document.getElementById('pTurn').value = D.turn; }
     D.wallRule = o.wallRule === 'slide' ? 'slide' : 'stop'; document.getElementById('pWallRule').value = D.wallRule;
+    D.moatRule = o.moatRule === 'each' ? 'each' : 'entry'; document.getElementById('pMoatRule').value = D.moatRule;
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
     document.getElementById('presetHint').textContent = hint;
@@ -1374,7 +1473,7 @@
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, cellTypeAt, exp: EXP,
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP,
     get fingerprint() { let t = 0; for (const a of agents) t += a.x * 1.0001 + a.y * 0.9999 + a.h; return t; } };
 })();
 </script>
