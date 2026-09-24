@@ -705,23 +705,28 @@
     }
     document.getElementById('courseTpl').value = TEMPLATES[key] ? key : 'none';
     courseChanged(false);
-    if (COURSE.hasStart) setInit('start');
-    else if (D.init === 'start') setInit('spread');
     reset();
   }
   function setInit(v) { D.init = v; document.getElementById('pInit').value = v; }
   function setBoundary(v) { D.boundary = v; document.getElementById('pBoundary').value = v; }
   let boundaryBeforeCourse = null;      // the edge setting in use before a course switched it to 'wall'
+  let initBeforeCourse = null;          // the starting layout in use before a start area switched it to 'start'
+  // a start area takes over the starting layout; when the start area goes, the old layout comes back
+  function syncInitWithStart() {
+    if (COURSE.hasStart) { if (D.init !== 'start') { initBeforeCourse = D.init; setInit('start'); } }
+    else if (D.init === 'start') { setInit(initBeforeCourse || 'spread'); initBeforeCourse = null; }
+    else initBeforeCourse = null;
+  }
   // after any change to the grid: refresh flags and the bits of UI that depend on them
   function courseChanged(edited) {
     scanCourse();
-    if (edited) { COURSE.name = COURSE.any ? '自作' : ''; document.getElementById('courseTpl').value = COURSE.any ? 'custom' : 'none'; evictFromWalls(); if (COURSE.hasStart && D.init !== 'start') setInit('start'); }
+    if (edited) { COURSE.name = COURSE.any ? '自作' : ''; document.getElementById('courseTpl').value = COURSE.any ? 'custom' : 'none'; evictFromWalls(); }
     // a course needs solid field edges (otherwise crabs slip round obstacles through the wrap-around):
     // switch the edge to 'wall' when a course appears, and give the old setting back when it is cleared
     if (COURSE.any && boundaryBeforeCourse === null) { boundaryBeforeCourse = D.boundary; setBoundary('wall'); }
     else if (!COURSE.any && boundaryBeforeCourse !== null) { setBoundary(boundaryBeforeCourse); boundaryBeforeCourse = null; }
     document.querySelector('#pInit option[value="start"]').disabled = !COURSE.hasStart;
-    if (!COURSE.hasStart && D.init === 'start') setInit('spread');
+    syncInitWithStart();
     document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
     document.getElementById('tileMoat').hidden = !COURSE.hasMoat;
     document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
@@ -1419,7 +1424,7 @@
     document.getElementById('courseTpl').value = loaded ? 'custom' : 'none';
     courseChanged(false);
     if (o.boundary === 'wall' || o.boundary === 'wrap') setBoundary(o.boundary);
-    if (o.init) setInit(COURSE.hasStart || o.init !== 'start' ? o.init : 'spread');
+    if (o.init) { setInit(COURSE.hasStart || o.init !== 'start' ? o.init : 'spread'); initBeforeCourse = COURSE.hasStart ? 'center' : null; }
     reset();
   }
   // sharing as a URL (#N=300&A=2&...)
