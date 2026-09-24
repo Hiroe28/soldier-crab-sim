@@ -331,8 +331,8 @@
       <div class="sethint">二匹とも動いていて正面からぶつかったときの決め方。</div>
     </div>
     <div class="f" data-tab="touch">
-      <div class="checkrow"><label class="check"><input type="checkbox" id="pHistory"><span>連続して触れられた回数を覚える（履歴）<small>回数は、向きの合成の重みづけと、濠の通行の判定に使う</small></span></label><button type="button" class="help" aria-label="説明">?</button></div>
-      <div class="sethint">触れられるたびに1増え、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。向きを合わせるとき、二匹の向きベクトルをそれぞれこの回数倍してから合成するので、混みあって接触が続く個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり。濠のマスには、この回数が閾値以上のときだけ入れる。オフのときは回数を数えない（常に0）。</div>
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pHistory"><span>連続して触れられた回数で向きを重みづけ（履歴）</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">「連続して触れられた回数」は、触れられるたびに1増え、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る回数で、常に数えている（「色の意味」で見える。濠の判定にも使う）。これをオンにすると、向きを合わせるとき、二匹の向きベクトルをそれぞれこの回数倍してから合成するので、混みあって接触が続く個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり。</div>
     </div>
 
     <!-- 場所 -->
@@ -412,10 +412,7 @@
         <option value="each">濠の中でも一歩ごと</option>
       </select></div>
       <div class="dep" id="depMoatRule" hidden>濠を塗るか、ひな形「濠で囲む」を選ぶと効きます。</div>
-      <div class="sethint">濠は、連続して触れられた回数が閾値以上のカニだけが渡れる。閾値はフィールドの上の「濠の閾値」で決める。「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「一歩ごと」では、濠の中で回数が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
-    </div>
-    <div class="f" data-tab="course">
-      <div class="warn" id="moatWarn" hidden>濠を渡るには、「触れる」の「連続して触れられた回数を覚える（履歴）」が必要です。いまはオフなので、誰も濠を渡れません。<br><button type="button" id="btnHistoryOn">オンにする</button></div>
+      <div class="sethint">濠は、連続して触れられた回数（触れられるたびに1増え、触れられないまま一歩を終えると0に戻る）が閾値以上のカニだけが渡れる。閾値はフィールドの上の「濠の閾値」で決める。「触れる」の「履歴」がオンなら、同じ回数が向きの合成の重みにもなる。「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「一歩ごと」では、濠の中で回数が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
     </div>
 
     <!-- 表示 -->
@@ -426,7 +423,7 @@
         <option value="heading">進行方向</option>
         <option value="value">接触回数（連続して触れられた回数）</option>
       </select></div>
-      <div class="sethint">個体ごとの色にすると同じ個体を追いやすい。進行方向にすると向きの揃い方が見える。接触回数にすると、混みあって回数が育った個体が赤く見える（「履歴」がオンのとき）。</div>
+      <div class="sethint">個体ごとの色にすると同じ個体を追いやすい。進行方向にすると向きの揃い方が見える。接触回数にすると、混みあって回数が育った個体が赤く見える。</div>
     </div>
     <div class="f" data-tab="view">
       <div class="checkrow"><label class="check"><input type="checkbox" id="pTrail" checked><span>軌跡を表示</span></label><button type="button" class="help" aria-label="説明">?</button></div>
@@ -452,7 +449,7 @@
     <div class="f note" data-tab="lab">押すと、その実験の設定（プリセット、コース、色）にそろえて始めます。</div>
     <div class="f" data-tab="lab">
       <div class="expset"><button type="button" class="expbtn" data-exp="moatEntry">濠を渡る</button>
-      <div class="hint">中央の300匹を幅2マスの濠が囲む。連続して触れられた回数が閾値（20）以上のカニだけ渡れる。色は接触回数。フィールド上の「濠の閾値」を200〜400にすると、密集した部分だけが渡る。</div></div>
+      <div class="hint">中央の300匹を幅2マスの濠が囲む。連続して触れられた回数が閾値（20）以上のカニだけ渡れる。色は接触回数。フィールド上の「濠の閾値」を上げると、密集した部分だけが渡る。「触れる」の「履歴」を入れると、向きの重みづけも加わった版になる。</div></div>
     </div>
     <div class="f" data-tab="lab">
       <div class="expset"><button type="button" class="expbtn" data-exp="moatEach">濠を渡る（一歩ごとに判定）</button>
@@ -519,14 +516,14 @@
     <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
     <li><b>両方が動いていて正面からぶつかった場合</b>：二匹とも止まり、二匹の進行方向ベクトルを合成した向きに進む。ちょうど真逆でぶつかって合成がゼロになるときは、止まっていつも通り次の向きを選ぶ。比較用に「向きを交換」も選べる。</li>
     <li><b>触れられて止まっている間にさらに触れられた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
-    <li><b>連続して触れられた回数（履歴、任意）</b>：「連続して触れられた回数を覚える」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。</li>
+    <li><b>連続して触れられた回数と履歴（任意）</b>：回数は常に数えている。「連続して触れられた回数で向きを重みづけ（履歴）」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。</li>
     <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから左右に、指定した角度の範囲で一様にランダムな角度だけ向きを変える（既定は±40°）。「角度の意味」で、指定角度を標準偏差とする正規分布にも切り替えられる。180°にするとどちらも完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。コースがある間は、設定にかかわらず端を壁として扱う（周期境界だと障害物を端から回り込めてしまうため）。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
-    <li><b>濠</b>：閾値つきのマス。連続して触れられた回数（「履歴」がオンのときだけ数え、オフなら常に0）が閾値以上のカニだけが渡れる。「濠の判定」が「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、回数が足りなければ次に触れられるまで動けない（立ち往生）。渡れないカニには、濠は壁と同じ。</li>
+    <li><b>濠</b>：閾値つきのマス。連続して触れられた回数が閾値以上のカニだけが渡れる（「履歴」のオン・オフは関係ない）。「濠の判定」が「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、回数が足りなければ次に触れられるまで動けない（立ち往生）。渡れないカニには、濠は壁と同じ。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
   </details>
@@ -629,7 +626,7 @@
     });
   }
   for (const k in checks) {
-    document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; if (k === 'history') refreshDeps(); });
+    document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
   }
   // display-only settings (not part of presets)
   const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wrap', turn: 'uniform', wallRule: 'stop', moatRule: 'entry' };
@@ -694,8 +691,9 @@
     const set = new Set(); for (let k = 0; k < COURSE.cells.length; k++) if (COURSE.cells[k] === MOAT) set.add(COURSE.thr[k]);
     return [...set].sort((a, b) => a - b).join(',');
   }
-  // the value a crab brings to a moat: its run of consecutive touches, counted only while 履歴 is on
-  function crabValue(a) { return P.history ? a.touched : 0; }
+  // the value a crab brings to a moat: its run of consecutive touches (always counted; 履歴 only decides
+  // whether it also weights the merging of headings)
+  function crabValue(a) { return a.touched; }
   function cellIndexAt(x, y) {
     const n = COURSE.n; if (!n) return -1;
     let i = Math.floor(x / COURSE.cell), j = Math.floor(y / COURSE.cell);
@@ -834,7 +832,6 @@
     document.getElementById('pInit').disabled = COURSE.hasStart; dep('depInit', COURSE.hasStart);
     const walls = bnd() === 'wall'; document.getElementById('pWallRule').disabled = !walls; dep('depWallRule', !walls);
     document.getElementById('pMoatRule').disabled = !COURSE.hasMoat; dep('depMoatRule', !COURSE.hasMoat);
-    dep('moatWarn', COURSE.hasMoat && !P.history);
     document.getElementById('courseChip').textContent = COURSE.any ? (COURSE.name || '自作') : 'なし';
     document.getElementById('courseBar').hidden = !(UI.full || COURSE.any || EDIT.on);
   }
@@ -1329,7 +1326,7 @@
     if (COURSE.hasMoat) {
       const n = agents.length || 1;
       document.getElementById('vMoat').textContent = Math.round(enteredCount / n * 100) + '%';
-      document.getElementById('hMoat').textContent = `一度でも濠に踏み込めた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '') + (P.history ? '' : '　※「連続して触れられた回数を覚える（履歴）」がオフなので回数は常に0で、誰も濠を渡れません');
+      document.getElementById('hMoat').textContent = `一度でも濠に踏み込めた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '');
       drawSpark('cMoat', hist.moat, 1, css('--accent'));
     }
   }
@@ -1506,7 +1503,6 @@
   document.getElementById('courseCell').addEventListener('change', e => {
     COURSE.cell = +e.target.value; document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
   });
-  document.getElementById('btnHistoryOn').addEventListener('click', () => { P.history = true; document.getElementById('pHistory').checked = true; refreshDeps(); });
   document.getElementById('btnCourseClear').addEventListener('click', () => {
     if (COURSE.any && !confirm('コースをすべて消しますか')) return;
     document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
@@ -1514,9 +1510,9 @@
 
   // ---- ready-made experiments: a preset plus a course, a moat rule and a colour, applied in one go ----
   const EXPERIMENTS = {
-    moatEntry: { preset: 'tidal1', set: { history: true, moatRule: 'entry' }, course: 'moat', thr: 20, color: 'value',
-      hint: '実験「濠を渡る」：中央の300匹を濠が囲む。連続して触れられた回数が閾値以上のカニだけ渡れる。色は接触回数。' },
-    moatEach:  { preset: 'tidal1', set: { history: true, moatRule: 'each' }, course: 'moat', thr: 20, color: 'value',
+    moatEntry: { preset: 'tidal1', set: { moatRule: 'entry' }, course: 'moat', thr: 20, color: 'value',
+      hint: '実験「濠を渡る」：中央の300匹を濠が囲む。連続して触れられた回数が閾値以上のカニだけ渡れる。色は接触回数。「触れる」の「履歴」を入れると向きの重みづけも加わる。' },
+    moatEach:  { preset: 'tidal1', set: { moatRule: 'each' }, course: 'moat', thr: 20, color: 'value',
       hint: '実験「濠を渡る（一歩ごとに判定）」：濠の中でも一歩ごとに回数を見る。途中で回数が切れたカニは濠の中で動けなくなる。' },
     corridor:  { preset: 'tidal1', set: { align: true }, course: 'straight', color: 'id',
       hint: '実験「通路を抜ける」：一本道をスタートからゴールへ。「相手の向きに合わせる」の有無で到達率を比べる。' },
