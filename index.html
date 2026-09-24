@@ -220,6 +220,12 @@
         <canvas id="cGoal"></canvas>
         <div class="hint" id="hGoal">一度でもゴールのマスに入った個体の割合。</div>
       </div>
+      <div class="tile wide" id="tilePos" hidden>
+        <div class="label">群れの位置（長い方向）</div>
+        <div class="value" id="vPos">—</div>
+        <canvas id="cPos"></canvas>
+        <div class="hint" id="hPos">全個体の重心の位置。0が一方の端、100が反対の端。直近10分。</div>
+      </div>
       <div class="tile wide" id="tileMoat" hidden>
         <div class="label">濠を渡り始めた割合</div>
         <div class="value" id="vMoat">0%</div>
@@ -396,6 +402,7 @@
         <option value="tee">T字路</option>
         <option value="neck">狭い出口</option>
         <option value="moat">濠で囲む</option>
+        <option value="tank">細長い水槽</option>
         <option value="custom" hidden>（自分で編集）</option>
       </select></div>
       <div class="sethint">ひな形を選ぶとその形になり、「なし」で消える。自分で描くには、フィールドの上の「コースを編集」を押して塗る。スタートがあればカニはそこから始まり、ゴールがあれば「着いた割合」がフィールドの下に出る。</div>
@@ -459,6 +466,10 @@
       <div class="expset"><button type="button" class="expbtn" data-exp="corridor">通路を抜ける</button>
       <div class="hint">一本道をスタートからゴールへ。「触れる」の「相手の向きに合わせる」を外すと、5分での到達が74%から17%に落ちる。</div></div>
     </div>
+    <div class="f" data-tab="lab">
+      <div class="expset"><button type="button" class="expbtn" data-exp="tank">細長い水槽で往復</button>
+      <div class="hint">6：1の細長い水槽に40匹（体10）、「壁に沿って進む」設定。実際のカニは 600×100 mm の水槽で、群れが端から端へ規則的に往復する（Nishiyama ほか 2013）。群れの重心の位置と往復の周期がフィールドの下に出る。既定の「壁で止まる」に戻すと、群れは片方の端にとどまりやすい。</div></div>
+    </div>
     <div class="f" data-tab="lab"><h3>保存した設定（このブラウザ内）</h3></div>
     <div class="f" data-tab="lab">
       <div id="savedRow" hidden>
@@ -502,6 +513,7 @@
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">ゴール到達</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">半数到達まで</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">濠を渡り始めた / 立ち往生</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">中央を横切った回数 / 往復の周期</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -678,13 +690,21 @@
     return true;
   }
   function scanCourse() {
-    COURSE.any = COURSE.hasStart = COURSE.hasGoal = COURSE.hasMoat = false; COURSE.startCells = [];
-    const c = COURSE.cells;
+    COURSE.any = COURSE.hasStart = COURSE.hasGoal = COURSE.hasMoat = false; COURSE.startCells = []; COURSE.axis = null;
+    const c = COURSE.cells, n = COURSE.n;
+    let i0 = n, i1 = -1, j0 = n, j1 = -1;
     for (let k = 0; k < c.length; k++) {
       if (c[k]) COURSE.any = true;
       if (c[k] === START) { COURSE.hasStart = true; COURSE.startCells.push(k); }
       if (c[k] === GOAL) COURSE.hasGoal = true;
       if (c[k] === MOAT) COURSE.hasMoat = true;
+      if (c[k] !== WALL) { const i = k % n, j = Math.floor(k / n); if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; }
+    }
+    // a long, narrow open area (at least 3 : 1) gets a "position along the long axis" measure
+    if (COURSE.any && i1 >= i0) {
+      const w = i1 - i0 + 1, h = j1 - j0 + 1;
+      if (w >= 3 * h) COURSE.axis = { dir: 'x', lo: i0 * COURSE.cell, hi: (i1 + 1) * COURSE.cell };
+      else if (h >= 3 * w) COURSE.axis = { dir: 'y', lo: j0 * COURSE.cell, hi: (j1 + 1) * COURSE.cell };
     }
   }
   function moatThresholds() {           // e.g. "20" or "10,20" for the condition summary
@@ -806,6 +826,7 @@
     tee:      ['T字路', g => { carve(g, 8, 17, 15, 22, START); carve(g, 10, 12, 13, 16); carve(g, 5, 8, 18, 11); carve(g, 1, 4, 4, 15, GOAL); carve(g, 19, 4, 22, 15, GOAL); }],
     neck:     ['狭い出口', g => { carve(g, 1, 3, 10, 20, START); carve(g, 11, 11, 12, 12); carve(g, 13, 3, 22, 20, GOAL); }],
     moat:     ['濠で囲む', g => { carve(g, 0, 0, 23, 23, GOAL); carve(g, 6, 6, 17, 17, MOAT); carve(g, 8, 8, 15, 15, START); }],
+    tank:     ['細長い水槽', g => { carve(g, 0, 10, 23, 13); }],       // 6 : 1, like the 600 x 100 mm arena of Nishiyama et al. (2013)
   };
   function applyTemplate(key) {
     clearCourse();
@@ -842,6 +863,7 @@
     refreshDeps();
     document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
     document.getElementById('tileMoat').hidden = !COURSE.hasMoat;
+    document.getElementById('tilePos').hidden = !COURSE.axis;
     document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
     document.getElementById('legCourse').hidden = !COURSE.any;
     if (!COURSE.hasMoat) { enteredCount = 0; stuckCount = 0; for (const a of agents) { a.inMoat = false; a.entered = false; } }
@@ -897,7 +919,28 @@
   const hist = { phi: [], clu: [], grp: [], touch: [], goal: [], moat: [] };
   let touchWindow = [];                // per-step touch counts for the last 5 s
   let stepCount = 0;
-  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; hist.moat = []; touchWindow = []; stepCount = 0; }
+  // swarm position along a long course (centroid, 0 = one end, 1 = the other), one sample per second for 10 minutes,
+  // plus the times at which it crossed the middle (with hysteresis) to count round trips
+  const POS_KEEP = 600;
+  const pos = { v: [], side: null, cross: [] };
+  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; hist.moat = []; touchWindow = []; stepCount = 0; pos.v = []; pos.side = null; pos.cross = []; }
+  function swarmPosition() {
+    const ax = COURSE.axis; if (!ax || !agents.length) return NaN;
+    let s = 0; for (const a of agents) s += ax.dir === 'x' ? a.x : a.y;
+    return Math.min(1, Math.max(0, (s / agents.length - ax.lo) / (ax.hi - ax.lo)));
+  }
+  function samplePosition() {
+    const v = swarmPosition(); if (isNaN(v)) return;
+    pos.v.push(v); if (pos.v.length > POS_KEEP) pos.v.shift();
+    const side = v < 0.35 ? 'lo' : v > 0.65 ? 'hi' : null;
+    if (side && side !== pos.side) { if (pos.side) pos.cross.push(stepCount / FPS); pos.side = side; }
+  }
+  // mean time for a round trip = mean interval between every other crossing of the middle
+  function roundTripPeriod() {
+    const c = pos.cross; if (c.length < 3) return NaN;
+    let s = 0, n = 0; for (let k = 2; k < c.length; k++) { s += c[k] - c[k - 2]; n++; }
+    return s / n;
+  }
 
   // displacement from (x1,y1) to (x2,y2); with periodic boundaries the shortest image is used
   function disp(x1, y1, x2, y2) {
@@ -992,6 +1035,7 @@
       if (COURSE.hasGoal) pushHist(hist.goal, agents.length ? arrivedCount / agents.length : 0);
       if (COURSE.hasMoat) pushHist(hist.moat, agents.length ? enteredCount / agents.length : 0);
     }
+    if (COURSE.axis && stepCount % FPS === 0) samplePosition();
   }
   // 濠の中でも一歩ごと: a crab standing in a moat cell whose value is below the threshold cannot set off.
   // It stays put until touches raise its value again (立ち往生). The decide() call it skipped would have
@@ -1307,6 +1351,22 @@
     }
     g.stroke();
   }
+  // a 0..1 series with a fixed window length (drawSpark assumes HIST samples)
+  function drawSeries(id, data, keep, color) {
+    const c = document.getElementById(id); const dpr = fitCanvas(c);
+    const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = c.width / dpr, h = c.height / dpr;
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = css('--line'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    if (!data.length) return;
+    g.strokeStyle = color; g.lineWidth = 1.5; g.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = (i / (keep - 1)) * w, y = h - 2 - data[i] * (h - 4);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+  }
   function drawStats() {
     const phi = hist.phi.at(-1) ?? 0, clu = hist.clu.at(-1) ?? 0, grp = hist.grp.at(-1) ?? 0, t = hist.touch.at(-1) ?? 0;
     document.getElementById('vPhi').textContent = phi.toFixed(2);
@@ -1322,6 +1382,13 @@
       document.getElementById('vGoal').textContent = Math.round(g * 100) + '%';
       document.getElementById('hGoal').textContent = `一度でもゴールのマスに入った個体の割合。経過 ${Math.floor(stepCount / FPS)}秒、半数到達：${t50 === null ? 'まだ' : Math.round(t50 / FPS) + '秒'}`;
       drawSpark('cGoal', hist.goal, 1, css('--accent'));
+    }
+    if (COURSE.axis) {
+      const v = pos.v.at(-1);
+      document.getElementById('vPos').textContent = v === undefined ? '—' : Math.round(v * 100);
+      const T = roundTripPeriod();
+      document.getElementById('hPos').textContent = `全個体の重心の位置。0が一方の端、100が反対の端。直近10分。中央を横切った回数：${pos.cross.length}回` + (isNaN(T) ? '' : `、往復の周期：${Math.round(T)}秒`);
+      drawSeries('cPos', pos.v, POS_KEEP, css('--accent'));
     }
     if (COURSE.hasMoat) {
       const n = agents.length || 1;
@@ -1349,7 +1416,7 @@
     const trials = Math.max(1, Math.min(30, +expEl('expTrials').value || 5));
     const secs = Math.max(30, Math.min(600, +expEl('expSecs').value || 120));
     const name = expEl('expName').value.trim() || ('条件' + (EXP.rows.length + 1));
-    const saved = { agents, seed, rand, hist: { ...hist }, touchWindow, stepCount, selected, running, arrivedCount, t50, enteredCount, stuckCount };
+    const saved = { agents, seed, rand, hist: { ...hist }, pos: { ...pos }, touchWindow, stepCount, selected, running, arrivedCount, t50, enteredCount, stuckCount };
     running = false; EXP.cancel = false;
     expEl('btnExp').disabled = true; expEl('btnExpCancel').hidden = false;
     const total = secs * FPS, windowStart = Math.max(0, total - 30 * FPS);
@@ -1372,13 +1439,13 @@
       }
       if (!EXP.cancel && acc.n) per.push({ grp: acc.grp / acc.n, clu: acc.clu / acc.n, phi: acc.phi / acc.n, touch: acc.touch / acc.n,
         goal: agents.length ? arrivedCount / agents.length : 0, t50: t50 === null ? NaN : t50 / FPS,
-        moat: agents.length ? enteredCount / agents.length : 0, stuck: acc.stuck / acc.n });
+        moat: agents.length ? enteredCount / agents.length : 0, stuck: acc.stuck / acc.n, cross: pos.cross.length, period: roundTripPeriod() });
     }
-    agents = saved.agents; seed = saved.seed; rand = saved.rand; Object.assign(hist, saved.hist);
+    agents = saved.agents; seed = saved.seed; rand = saved.rand; Object.assign(hist, saved.hist); Object.assign(pos, saved.pos);
     touchWindow = saved.touchWindow; stepCount = saved.stepCount; selected = saved.selected; running = saved.running;
     arrivedCount = saved.arrivedCount; t50 = saved.t50; enteredCount = saved.enteredCount; stuckCount = saved.stuckCount;
     expEl('btnExp').disabled = false; expEl('btnExpCancel').hidden = true;
-    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per, hasGoal: COURSE.hasGoal, hasMoat: COURSE.hasMoat }); renderExp(); }
+    if (per.length) { EXP.rows.push({ name, cond: summarizeCondition(), trials: per.length, secs, per, hasGoal: COURSE.hasGoal, hasMoat: COURSE.hasMoat, hasAxis: !!COURSE.axis }); renderExp(); }
     expEl('expStatus').textContent = EXP.cancel ? '中止しました' : `完了（${per.length}回 × ${secs}秒）`;
   }
   function fmtPct(arr) { const [m, sd] = meanSd(arr); return `${(m * 100).toFixed(1)} ± ${(sd * 100).toFixed(1)}%`; }
@@ -1392,8 +1459,13 @@
       half = reached.length ? `${fmtNum(reached, 0)}秒（${reached.length}/${r.per.length}回）` : `未到達（0/${r.per.length}回）`;
     }
     const moat = r.hasMoat ? `${fmtPct(r.per.map(x => x.moat))} / ${fmtPct(r.per.map(x => x.stuck))}` : '—';
+    let osc = '—';
+    if (r.hasAxis) {
+      const ps = r.per.map(x => x.period).filter(v => !isNaN(v));
+      osc = `${fmtNum(r.per.map(x => x.cross), 1)}回 / ` + (ps.length ? `${fmtNum(ps, 0)}秒（${ps.length}/${r.per.length}回）` : '—');
+    }
     return [r.name, r.cond, `${r.trials}×${r.secs}秒`,
-      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half, moat];
+      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half, moat, osc];
   }
   function renderExp() {
     const tb = expEl('expTable').querySelector('tbody'); tb.innerHTML = '';
@@ -1407,7 +1479,7 @@
   expEl('btnExpCancel').addEventListener('click', () => { EXP.cancel = true; });
   expEl('btnExpClear').addEventListener('click', () => { if (!EXP.rows.length || confirm('表を消しますか')) { EXP.rows = []; renderExp(); } });
   expEl('btnExpCopy').addEventListener('click', async e => {
-    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠を渡り始めた/立ち往生'];
+    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠を渡り始めた/立ち往生', '中央を横切った回数/往復の周期'];
     const tsv = [head, ...EXP.rows.map(rowCells)].map(r => r.join('\t')).join('\n');
     try { await navigator.clipboard.writeText(tsv); e.target.textContent = 'コピーしました'; }
     catch { window.prompt('コピーしてください', tsv); }
@@ -1514,6 +1586,8 @@
       hint: '実験「濠を渡る」：中央の300匹を濠が囲む。連続して触れられた回数が閾値以上のカニだけ渡れる。色は接触回数。「触れる」の「履歴」を入れると向きの重みづけも加わる。' },
     moatEach:  { preset: 'tidal1', set: { moatRule: 'each' }, course: 'moat', thr: 20, color: 'value',
       hint: '実験「濠を渡る（一歩ごとに判定）」：濠の中でも一歩ごとに回数を見る。途中で回数が切れたカニは濠の中で動けなくなる。' },
+    tank:      { preset: 'tidal1', set: { N: 40, R: 10, Rmin: 10, init: 'spread', wallRule: 'slide' }, course: 'tank', color: 'id',
+      hint: '実験「細長い水槽で往復」：6：1の水槽に40匹、壁に沿って進む設定。群れの重心が端から端へ往復するか。実際のカニ（600×100 mm）では規則的に往復する。' },
     corridor:  { preset: 'tidal1', set: { align: true }, course: 'straight', color: 'id',
       hint: '実験「通路を抜ける」：一本道をスタートからゴールへ。「相手の向きに合わせる」の有無で到達率を比べる。' },
   };
@@ -1628,7 +1702,8 @@
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab, applyExperiment,
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab, applyExperiment, pos, roundTripPeriod,
+    stepN(n) { for (let k = 0; k < n; k++) step(); }, setSeed(v) { seed = v; reset(); },
     get fingerprint() { let t = 0; for (const a of agents) t += a.x * 1.0001 + a.y * 0.9999 + a.h; return t; } };
 })();
 </script>
