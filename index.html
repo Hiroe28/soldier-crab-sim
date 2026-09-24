@@ -89,8 +89,11 @@
   .panelhead .ptitle { font-size: 13px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
   .switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
   .switch input { accent-color: var(--accent); margin: 0; }
-  .panel h3 { font-size: 12px; margin: 14px 0 4px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
-  .panel h3:first-child { margin-top: 4px; }
+  .panel h3 { font-size: 12px; margin: 16px 0 4px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
+  .panel h3.first { margin-top: 4px; padding-top: 0; border-top: 0; }
+  .expset { margin: 6px 0 10px; }
+  .expset .expbtn { width: 100%; text-align: left; font-weight: 600; }
+  .expset .hint { font-size: 11px; color: var(--ink-2); line-height: 1.5; margin-top: 4px; }
   .tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin: 10px 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .tabs button { padding: 4px 0; font-size: 12px; border-radius: 999px; text-align: center; }
   .tabs button.on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
@@ -218,10 +221,10 @@
         <div class="hint" id="hGoal">一度でもゴールのマスに入った個体の割合。</div>
       </div>
       <div class="tile wide" id="tileMoat" hidden>
-        <div class="label">濠に入った割合</div>
+        <div class="label">濠を渡り始めた割合</div>
         <div class="value" id="vMoat">0%</div>
         <canvas id="cMoat"></canvas>
-        <div class="hint" id="hMoat">一度でも濠のマスに入れた個体の割合。</div>
+        <div class="hint" id="hMoat">一度でも濠に踏み込めた個体の割合。</div>
       </div>
     </div>
   </section>
@@ -283,6 +286,25 @@
       <div class="row"><label for="pV">歩く速さ</label><button type="button" class="help" aria-label="説明">?</button><output id="oV"></output></div>
       <input type="range" id="pV" min="0.3" max="4" step="0.1">
       <div class="sethint">1ステップ（1/60秒）に進む距離。</div>
+    </div>
+    <div class="f" data-tab="walk"><h3>一歩先の予期（郡司モデルの要素、既定はオフ）</h3></div>
+    <div class="f" data-tab="walk">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">止まったとき、前方の扇形（角度＝「向きの変え方」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない。郡司ペギオ幸夫『群れは意識をもつ』の相互予期モデルの要素。</div>
+    </div>
+    <div class="f" data-tab="walk">
+      <div class="row"><label for="pK">候補の数</label><button type="button" class="help" aria-label="説明">?</button><output id="oK"></output></div>
+      <input type="range" id="pK" min="1" max="30" step="1">
+      <div class="sethint">止まったとき、前方に思い浮かべる行き先候補の数。</div>
+    </div>
+    <div class="f" data-tab="walk">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pChase"><span>空いた場所に入る（追尾）</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">候補が誰とも重ならないとき、近くの個体が去った場所へ向かう。</div>
+    </div>
+    <div class="f" data-tab="walk">
+      <div class="row"><label for="pSolo">仲間と重ならなくても進む確率</label><button type="button" class="help" aria-label="説明">?</button><output id="oSolo"></output></div>
+      <input type="range" id="pSolo" min="0" max="1" step="0.05">
+      <div class="sethint">候補が誰とも重ならないとき、それでも一歩進む確率。</div>
     </div>
 
     <!-- 触れられたら：ルール2 -->
@@ -386,14 +408,14 @@
     <div class="f" data-tab="course">
       <div class="row stack"><div class="lab"><label for="pMoatRule">濠の判定</label><button type="button" class="help" aria-label="説明">?</button></div>
       <select id="pMoatRule">
-        <option value="entry">入る瞬間だけ</option>
+        <option value="entry">渡り始める瞬間だけ</option>
         <option value="each">濠の中でも一歩ごと</option>
       </select></div>
       <div class="dep" id="depMoatRule" hidden>濠を塗るか、ひな形「濠で囲む」を選ぶと効きます。</div>
-      <div class="sethint">濠のマスには、連続して触れられた回数が閾値以上のときだけ入れる。閾値はフィールドの上の「濠の閾値」で決める。「入る瞬間だけ」なら、入ったあとは濠の中を自由に動ける。「一歩ごと」では、濠の中で回数が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
+      <div class="sethint">濠は、連続して触れられた回数が閾値以上のカニだけが渡れる。閾値はフィールドの上の「濠の閾値」で決める。「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「一歩ごと」では、濠の中で回数が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
     </div>
     <div class="f" data-tab="course">
-      <div class="warn" id="moatWarn" hidden>濠を通るには、「触れられたら」の「連続して触れられた回数を覚える（履歴）」が必要です。いまはオフなので、誰も濠に入れません。<br><button type="button" id="btnHistoryOn">オンにする</button></div>
+      <div class="warn" id="moatWarn" hidden>濠を渡るには、「触れる」の「連続して触れられた回数を覚える（履歴）」が必要です。いまはオフなので、誰も濠を渡れません。<br><button type="button" id="btnHistoryOn">オンにする</button></div>
     </div>
 
     <!-- 表示 -->
@@ -425,25 +447,20 @@
       <div class="sethint">1フレームに何ステップ進めるか。8×で8倍速。</div>
     </div>
 
-    <!-- 実験 -->
-    <div class="f" data-tab="lab"><h3>一歩先の予期（郡司モデルの要素、既定はオフ）</h3></div>
+    <!-- 実験：すぐ試せるセット、自分の設定の保存、数を測る -->
+    <div class="f" data-tab="lab"><h3 class="first">用意した実験</h3></div>
+    <div class="f note" data-tab="lab">押すと、その実験の設定（プリセット、コース、色）にそろえて始めます。</div>
     <div class="f" data-tab="lab">
-      <div class="checkrow"><label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する</span></label><button type="button" class="help" aria-label="説明">?</button></div>
-      <div class="sethint">止まったとき、前方の扇形（角度＝「向きの変え方」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない。郡司ペギオ幸夫『群れは意識をもつ』の相互予期モデルの要素。</div>
+      <div class="expset"><button type="button" class="expbtn" data-exp="moatEntry">濠を渡る</button>
+      <div class="hint">中央の300匹を幅2マスの濠が囲む。連続して触れられた回数が閾値（20）以上のカニだけ渡れる。色は接触回数。フィールド上の「濠の閾値」を200〜400にすると、密集した部分だけが渡る。</div></div>
     </div>
     <div class="f" data-tab="lab">
-      <div class="row"><label for="pK">候補の数</label><button type="button" class="help" aria-label="説明">?</button><output id="oK"></output></div>
-      <input type="range" id="pK" min="1" max="30" step="1">
-      <div class="sethint">止まったとき、前方に思い浮かべる行き先候補の数。</div>
+      <div class="expset"><button type="button" class="expbtn" data-exp="moatEach">濠を渡る（一歩ごとに判定）</button>
+      <div class="hint">同じ配置で、濠の中でも一歩ごとに回数を見る。渡っている途中で回数が切れたカニは、濠の中で動けなくなる。</div></div>
     </div>
     <div class="f" data-tab="lab">
-      <div class="checkrow"><label class="check"><input type="checkbox" id="pChase"><span>空いた場所に入る（追尾）</span></label><button type="button" class="help" aria-label="説明">?</button></div>
-      <div class="sethint">候補が誰とも重ならないとき、近くの個体が去った場所へ向かう。</div>
-    </div>
-    <div class="f" data-tab="lab">
-      <div class="row"><label for="pSolo">仲間と重ならなくても進む確率</label><button type="button" class="help" aria-label="説明">?</button><output id="oSolo"></output></div>
-      <input type="range" id="pSolo" min="0" max="1" step="0.05">
-      <div class="sethint">候補が誰とも重ならないとき、それでも一歩進む確率。</div>
+      <div class="expset"><button type="button" class="expbtn" data-exp="corridor">通路を抜ける</button>
+      <div class="hint">一本道をスタートからゴールへ。「触れる」の「相手の向きに合わせる」を外すと、5分での到達が74%から17%に落ちる。</div></div>
     </div>
     <div class="f" data-tab="lab"><h3>保存した設定（このブラウザ内）</h3></div>
     <div class="f" data-tab="lab">
@@ -456,8 +473,8 @@
       </div>
       <div class="btns" style="margin-top:6px"><button id="btnSave">いまの設定を保存</button></div>
     </div>
-    <div class="f" data-tab="lab"><h3>比較実験</h3></div>
-    <div class="f note" data-tab="lab">いまの設定を乱数の種を変えて何回か走らせ、平均を表にします。<a href="#expSection">ページ下の「比較実験」へ</a></div>
+    <div class="f" data-tab="lab"><h3>比較実験（数を測る）</h3></div>
+    <div class="f note" data-tab="lab">いまの設定を乱数の種を変えて何回か走らせ、群れの割合や到達率の平均を表にします。<a href="#expSection">ページ下の「比較実験」へ</a></div>
     </div>
   </aside>
 </main>
@@ -487,7 +504,7 @@
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">接触/5秒</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">ゴール到達</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">半数到達まで</th>
-        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">濠に入った / 立ち往生</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">濠を渡り始めた / 立ち往生</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -509,7 +526,7 @@
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
-    <li><b>濠</b>：閾値つきのマス。連続して触れられた回数（「履歴」がオンのときだけ数え、オフなら常に0）が閾値以上のときだけ入れる。「濠の判定」が「入る瞬間だけ」なら、入ったあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、値が足りなければ次に触れられるまで動けない（立ち往生）。濠に入れないカニには、濠は壁と同じ。</li>
+    <li><b>濠</b>：閾値つきのマス。連続して触れられた回数（「履歴」がオンのときだけ数え、オフなら常に0）が閾値以上のカニだけが渡れる。「濠の判定」が「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、回数が足りなければ次に触れられるまで動けない（立ち往生）。渡れないカニには、濠は壁と同じ。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
   </details>
@@ -621,10 +638,8 @@
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
     value: '色＝接触回数（連続して触れられた回数）。薄い灰青が0、赤に近いほど多い（40以上で最も濃い）',
   };
-  document.getElementById('pColor').addEventListener('change', e => {
-    D.color = e.target.value;
-    document.getElementById('legColor').lastChild.textContent = legendText[D.color];
-  });
+  function setColor(v) { D.color = v; document.getElementById('pColor').value = v; document.getElementById('legColor').lastChild.textContent = legendText[v]; }
+  document.getElementById('pColor').addEventListener('change', e => setColor(e.target.value));
   document.getElementById('pTrail').addEventListener('change', e => { D.trail = e.target.checked; });
   const UI = { full: false, tab: 'walk' };   // simple (basic settings only) or full (tabs); which tab is open
   document.getElementById('pHeadon').addEventListener('change', e => { D.headon = e.target.value; });
@@ -1314,7 +1329,7 @@
     if (COURSE.hasMoat) {
       const n = agents.length || 1;
       document.getElementById('vMoat').textContent = Math.round(enteredCount / n * 100) + '%';
-      document.getElementById('hMoat').textContent = `一度でも濠のマスに入れた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '') + (P.history ? '' : '　※「連続して触れられた回数を覚える（履歴）」がオフなので回数は常に0で、濠には入れません');
+      document.getElementById('hMoat').textContent = `一度でも濠に踏み込めた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '') + (P.history ? '' : '　※「連続して触れられた回数を覚える（履歴）」がオフなので回数は常に0で、誰も濠を渡れません');
       drawSpark('cMoat', hist.moat, 1, css('--accent'));
     }
   }
@@ -1395,7 +1410,7 @@
   expEl('btnExpCancel').addEventListener('click', () => { EXP.cancel = true; });
   expEl('btnExpClear').addEventListener('click', () => { if (!EXP.rows.length || confirm('表を消しますか')) { EXP.rows = []; renderExp(); } });
   expEl('btnExpCopy').addEventListener('click', async e => {
-    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠に入った/立ち往生'];
+    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠を渡り始めた/立ち往生'];
     const tsv = [head, ...EXP.rows.map(rowCells)].map(r => r.join('\t')).join('\n');
     try { await navigator.clipboard.writeText(tsv); e.target.textContent = 'コピーしました'; }
     catch { window.prompt('コピーしてください', tsv); }
@@ -1496,6 +1511,25 @@
     if (COURSE.any && !confirm('コースをすべて消しますか')) return;
     document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
   });
+
+  // ---- ready-made experiments: a preset plus a course, a moat rule and a colour, applied in one go ----
+  const EXPERIMENTS = {
+    moatEntry: { preset: 'tidal1', set: { history: true, moatRule: 'entry' }, course: 'moat', thr: 20, color: 'value',
+      hint: '実験「濠を渡る」：中央の300匹を濠が囲む。連続して触れられた回数が閾値以上のカニだけ渡れる。色は接触回数。' },
+    moatEach:  { preset: 'tidal1', set: { history: true, moatRule: 'each' }, course: 'moat', thr: 20, color: 'value',
+      hint: '実験「濠を渡る（一歩ごとに判定）」：濠の中でも一歩ごとに回数を見る。途中で回数が切れたカニは濠の中で動けなくなる。' },
+    corridor:  { preset: 'tidal1', set: { align: true }, course: 'straight', color: 'id',
+      hint: '実験「通路を抜ける」：一本道をスタートからゴールへ。「相手の向きに合わせる」の有無で到達率を比べる。' },
+  };
+  function applyExperiment(key) {
+    const e = EXPERIMENTS[key]; if (!e) return;
+    applyState({ ...PRESETS[e.preset], headon: 'merge', turn: 'uniform', boundary: 'wrap', wallRule: 'stop', ...e.set }, e.hint);
+    if (e.thr) document.getElementById('moatThr').value = e.thr;
+    applyTemplate(e.course);
+    setColor(e.color);
+    document.getElementById('presetHint').textContent = e.hint;
+  }
+  for (const b of document.querySelectorAll('.expbtn')) b.addEventListener('click', () => applyExperiment(b.dataset.exp));
 
   // small hook for scripted checks (not used by the page itself)
   // ---- a "setting" = the slider values + placement + head-on rule, as a plain object ----
@@ -1598,7 +1632,7 @@
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab,
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab, applyExperiment,
     get fingerprint() { let t = 0; for (const a of agents) t += a.x * 1.0001 + a.y * 0.9999 + a.h; return t; } };
 })();
 </script>
