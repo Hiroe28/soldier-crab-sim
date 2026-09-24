@@ -61,8 +61,7 @@
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 12px; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  @media (max-width: 640px) { .tiles { grid-template-columns: 1fr 1fr; } }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
   .tile {
     background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 8px;
   }
@@ -74,30 +73,52 @@
   .tile.wide .label, .tile.wide .hint { grid-column: 1 / -1; }
   .tile.wide canvas { margin-top: 0; }
   .coursebar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 13px; color: var(--ink-2); }
+  .coursebar b { color: var(--ink); font-weight: 600; }
   .coursebar .tools { display: inline-flex; gap: 4px; }
   .coursebar button.tool.on, #btnEdit[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
   .coursebar input[type=number] { width: 4em; font: inherit; font-size: 13px; padding: 3px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
   .coursebar .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
   canvas#arena.editing { cursor: crosshair; }
-  .sethint { font-size: 11px; color: var(--ink-3); line-height: 1.4; margin: -4px 0 8px; }
-  body.nohints .sethint { display: none; }
+  .sethint { display: none; font-size: 11px; color: var(--ink-2); line-height: 1.5; margin: 2px 0 6px; padding: 6px 8px; background: var(--bg); border-radius: 6px; }
+  .f.open .sethint { display: block; }
+  .dep { font-size: 11px; color: var(--accent-2); line-height: 1.4; margin: 2px 0 6px; }
+  .warn { font-size: 12px; color: var(--ink); background: color-mix(in srgb, var(--accent-2) 12%, var(--surface)); border: 1px solid var(--accent-2); border-radius: 6px; padding: 8px 10px; margin: 8px 0; line-height: 1.5; }
+  .warn button { margin-top: 4px; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-  .panel h2 { font-size: 13px; margin: 14px 0 6px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
-  .panel h2:first-child { margin-top: 0; }
+  .panelhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .panelhead .ptitle { font-size: 13px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
+  .switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .switch input { accent-color: var(--accent); margin: 0; }
+  .panel h3 { font-size: 12px; margin: 14px 0 4px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; }
+  .panel h3:first-child { margin-top: 4px; }
+  .tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin: 10px 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .tabs button { padding: 4px 0; font-size: 12px; border-radius: 999px; text-align: center; }
+  .tabs button.on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  .fields { display: flex; flex-direction: column; }
+  body:not(.full) .f[data-basic] { order: var(--o, 50); }   /* the simple panel has its own order; tabs keep the document order */
+  .f.note { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin: 4px 0; }
+  .help {
+    width: 18px; height: 18px; padding: 0; border-radius: 50%; font-size: 11px; line-height: 1; font-weight: 600;
+    color: var(--ink-3); border-color: var(--line); background: transparent; flex: none;
+  }
+  .f.open .help { color: var(--surface); background: var(--ink-2); border-color: var(--ink-2); }
+  .lab { display: flex; align-items: center; gap: 6px; }
+  .checkrow { display: flex; align-items: flex-start; gap: 6px; }
+  .checkrow .check { flex: 1; }
+  .checkrow .help { margin-top: 7px; }
+  /* simple mode: only the basic settings, no tabs; full mode: one tab at a time */
+  body:not(.full) .tabs, body:not(.full) .f:not([data-basic]), body:not(.full) .tile.adv, body:not(.full) #expSection { display: none; }
+  body.full .f { display: none; }
+  body.full[data-tab="walk"] .f[data-tab="walk"], body.full[data-tab="touch"] .f[data-tab="touch"], body.full[data-tab="place"] .f[data-tab="place"],
+  body.full[data-tab="course"] .f[data-tab="course"], body.full[data-tab="view"] .f[data-tab="view"], body.full[data-tab="lab"] .f[data-tab="lab"] { display: block; }
+  .ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .ctrl .sp { flex: 1; }
   @media (min-width: 801px) {
     /* the field stays on screen while the (longer) settings column scrolls with the page */
     .stage { position: sticky; top: 10px; }
     canvas#arena { width: min(100%, calc(100vh - 300px)); min-width: 320px; margin: 0 auto; }
   }
-  details.group { margin-top: 12px; }
-  details.group summary {
-    font-size: 13px; color: var(--ink-2); font-weight: 600; letter-spacing: .02em; cursor: pointer;
-    list-style: none; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
-  }
-  details.group summary::-webkit-details-marker { display: none; }
-  details.group summary::before { content: '▸'; font-size: 11px; color: var(--ink-3); }
-  details.group[open] summary::before { content: '▾'; }
-  .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; margin: 6px 0 2px; }
+  .row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 6px; margin: 6px 0 2px; }
   .row label { font-size: 13px; }
   .row.stack { grid-template-columns: 1fr; }
   .row.stack select { width: 100%; }
@@ -130,23 +151,14 @@
     <b>カニ1匹のルール</b><br>
     1. 少し進んで止まり（食べる）、向きを少し変えて、また進む。<br>
     2. 誰かに触れられたら止まり、その相手と同じ向きに進む。<br>
-    <span style="color:var(--ink-3)">これだけで、小さな群れが次々にできる。スライダーで条件を変えて、群れのでき方を眺めてください。</span>
+    <span style="color:var(--ink-3)">これだけで、小さな群れが次々にできる。右の設定で条件を変えて、群れのでき方を眺めてください。</span>
   </blockquote>
 </header>
 
 <main>
   <section class="stage">
-    <div class="coursebar">
-      <label>コース <select id="courseTpl">
-        <option value="none">なし</option>
-        <option value="straight">一本道</option>
-        <option value="bend">L字</option>
-        <option value="zigzag">ジグザグ</option>
-        <option value="tee">T字路</option>
-        <option value="neck">狭い出口</option>
-        <option value="moat">濠で囲む</option>
-        <option value="custom" hidden>（自分で編集）</option>
-      </select></label>
+    <div class="coursebar" id="courseBar" hidden>
+      <span>コース：<b id="courseChip">なし</b></span>
       <button id="btnEdit" aria-pressed="false">コースを編集</button>
       <span class="tools" id="courseTools" hidden>
         <button class="tool on" data-tool="wall"><i class="sw" style="background:var(--wall)"></i>壁</button>
@@ -156,31 +168,25 @@
         <button class="tool" data-tool="erase">消しゴム</button>
       </span>
       <label id="moatThrWrap" hidden>濠の閾値 <input id="moatThr" type="number" min="1" max="999" value="20"></label>
-      <label id="cellWrap" hidden>マスの大きさ <select id="courseCell"><option>25</option><option selected>50</option><option>100</option></select></label>
       <button id="btnCourseClear" hidden>すべて消す</button>
     </div>
-    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。濠は、塗ったときの閾値をマスごとに持ちます（編集モードでないときに閾値を変えると、すべての濠のマスに適用されます）。広さかマスの大きさを変えるとコースは消えます。</div>
+    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。濠は、塗ったときの閾値をマスごとに持ちます（編集モードでないときに閾値を変えると、すべての濠のマスに適用されます）。</div>
     <canvas id="arena" width="600" height="600" aria-label="シミュレーション画面"></canvas>
+    <div class="ctrl">
+      <button class="primary" id="btnPlay">一時停止</button>
+      <button id="btnReset">リセット</button>
+      <button id="btnShuffle">配置を変える</button>
+      <span class="sp"></span>
+      <button id="btnShare">この設定のリンクをコピー</button>
+    </div>
     <div class="legend">
       <span id="legColor"><i style="background: conic-gradient(hsl(0 60% 50%), hsl(90 60% 50%), hsl(180 60% 50%), hsl(270 60% 50%), hsl(360 60% 50%))"></i>色＝個体（同じ色は同じ個体）、ハサミと目のある側が前</span>
       <span><i style="background: transparent; border: 2px solid var(--ink-3)"></i>止まっている</span>
-      <span><i style="background: transparent; border: 2px solid var(--ink)"></i>触られて向きを合わせ中</span>
+      <span><i style="background: transparent; border: 2px solid var(--ink)"></i>触れられて向きを合わせ中</span>
       <span id="legCourse" hidden><i style="background: var(--wall); border-radius: 2px"></i>壁　S＝スタート　G＝ゴール　<i style="background: var(--moat); opacity:.5; border-radius: 2px"></i>濠（数字は閾値）</span>
-      <span>個体をタップすると追跡（もう一度で解除）。空いた場所をタップすると手で触る。ドラッグで移動、ホイールか「拡大」で寄る</span>
+      <span>個体をタップすると追跡（もう一度で解除）。空いた場所をタップすると手で触る。ドラッグで移動、ホイールで拡大</span>
     </div>
     <div class="tiles">
-      <div class="tile">
-        <div class="label">整列度</div>
-        <div class="value" id="vPhi">0.00</div>
-        <canvas id="cPhi"></canvas>
-        <div class="hint">全員の向きベクトルの平均の長さ。1で全員同じ向き。</div>
-      </div>
-      <div class="tile">
-        <div class="label">最大の群れの割合</div>
-        <div class="value" id="vClu">0%</div>
-        <canvas id="cClu"></canvas>
-        <div class="hint">体の1.5倍以内でつながった最大集団に何割いるか。</div>
-      </div>
       <div class="tile">
         <div class="label">3匹以上の群れにいる割合</div>
         <div class="value" id="vGrp">0%</div>
@@ -188,10 +194,22 @@
         <div class="hint">体の1.5倍以内でつながった3匹以上の集団に何割いるか。</div>
       </div>
       <div class="tile">
+        <div class="label">整列度</div>
+        <div class="value" id="vPhi">0.00</div>
+        <canvas id="cPhi"></canvas>
+        <div class="hint">全員の向きベクトルの平均の長さ。1で全員同じ向き。</div>
+      </div>
+      <div class="tile adv">
+        <div class="label">最大の群れの割合</div>
+        <div class="value" id="vClu">0%</div>
+        <canvas id="cClu"></canvas>
+        <div class="hint">体の1.5倍以内でつながった最大集団に何割いるか。</div>
+      </div>
+      <div class="tile adv">
         <div class="label">接触回数（直近5秒）</div>
         <div class="value" id="vTouch">0</div>
         <canvas id="cTouch"></canvas>
-        <div class="hint">「触られた」判定が起きた回数。</div>
+        <div class="hint">「触れられた」判定が起きた回数。</div>
       </div>
       <div class="tile wide" id="tileGoal" hidden>
         <div class="label">ゴールに着いた割合</div>
@@ -209,14 +227,11 @@
   </section>
 
   <aside class="panel">
-    <h2>操作</h2>
-    <div class="btns">
-      <button class="primary" id="btnPlay">一時停止</button>
-      <button id="btnReset">リセット</button>
-      <button id="btnShuffle">配置を変える</button>
-      <button id="btnShare">この設定のリンクをコピー</button>
+    <div class="panelhead">
+      <span class="ptitle">設定</span>
+      <label class="switch"><input type="checkbox" id="uiFull"><span>くわしい設定</span></label>
     </div>
-    <div class="row stack" style="margin-top:10px">
+    <div class="row stack">
       <label for="preset">プリセット</label>
       <select id="preset">
         <option value="tidal1" selected>干潟：中央から広がる（300匹）</option>
@@ -228,8 +243,210 @@
       </select>
       <div class="hint" id="presetHint" style="margin-top:4px"></div>
     </div>
-    <div class="row stack">
-      <label for="savedList">保存した設定（このブラウザ内）</label>
+
+    <div class="tabs" id="tabs">
+      <button type="button" data-tab="walk">歩く</button>
+      <button type="button" data-tab="touch">触れる</button>
+      <button type="button" data-tab="place">場所</button>
+      <button type="button" data-tab="course">コース</button>
+      <button type="button" data-tab="view">表示</button>
+      <button type="button" data-tab="lab">実験</button>
+    </div>
+
+    <div class="fields">
+    <!-- 歩く：ルール1「少し進んで止まる」 -->
+    <div class="f note" data-tab="walk">ルール1「少し進んで止まり、向きを少し変えて、また進む」の決め方。</div>
+    <div class="f" data-tab="walk">
+      <div class="row"><label for="pL">一度に進む距離（体の何倍）</label><button type="button" class="help" aria-label="説明">?</button><output id="oL"></output></div>
+      <input type="range" id="pL" min="0.5" max="20" step="0.5">
+      <div class="sethint">一度に歩く距離を、その個体の体の直径の何倍で決める。</div>
+    </div>
+    <div class="f" data-tab="walk" data-basic style="--o:2">
+      <div class="row"><label for="pP">止まる（食べる）時間</label><button type="button" class="help" aria-label="説明">?</button><output id="oP"></output></div>
+      <input type="range" id="pP" min="0" max="3" step="0.1">
+      <div class="sethint">歩き終えてから次に歩き出すまでの時間。食べている時間と考える。</div>
+    </div>
+    <div class="f" data-tab="walk" data-basic style="--o:3">
+      <div class="row"><label for="pS">向きの変え方</label><button type="button" class="help" aria-label="説明">?</button><output id="oS"></output></div>
+      <input type="range" id="pS" min="0" max="180" step="5">
+      <div class="sethint">止まるたびに、前の向きからこの角度の範囲で向きを変える。180°で完全にランダム。</div>
+    </div>
+    <div class="f" data-tab="walk">
+      <div class="row stack"><div class="lab"><label for="pTurn">角度の意味</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pTurn">
+        <option value="uniform">±角度の範囲で一様にランダム</option>
+        <option value="normal">角度を標準偏差とする正規分布</option>
+      </select></div>
+      <div class="sethint">「±角度の範囲で一様」なら10°で−10°〜+10°の範囲、「正規分布」なら10°が標準偏差。</div>
+    </div>
+    <div class="f" data-tab="walk">
+      <div class="row"><label for="pV">歩く速さ</label><button type="button" class="help" aria-label="説明">?</button><output id="oV"></output></div>
+      <input type="range" id="pV" min="0.3" max="4" step="0.1">
+      <div class="sethint">1ステップ（1/60秒）に進む距離。</div>
+    </div>
+
+    <!-- 触れられたら：ルール2 -->
+    <div class="f note" data-tab="touch">ルール2「誰かに触れられたら止まり、その相手と同じ向きに進む」の決め方。</div>
+    <div class="f" data-tab="touch">
+      <div class="row"><label for="pT">触れられて止まる時間</label><button type="button" class="help" aria-label="説明">?</button><output id="oT"></output></div>
+      <input type="range" id="pT" min="0" max="3" step="0.1">
+      <div class="sethint">触れられたときに止まっている時間。</div>
+    </div>
+    <div class="f" data-tab="touch" data-basic style="--o:5">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pAlign"><span>触れられた側は相手の向きに合わせる</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">外すと「止まるだけ」になる（対照実験用）。</div>
+    </div>
+    <div class="f" data-tab="touch">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">既定では触った側は止まらず、そのまま歩き続ける。</div>
+    </div>
+    <div class="f" data-tab="touch">
+      <div class="row stack"><div class="lab"><label for="pHeadon">正面からぶつかったら</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pHeadon">
+        <option value="merge">二匹の向きを合成</option>
+        <option value="swap">お互いの向きを交換</option>
+      </select></div>
+      <div class="sethint">二匹とも動いていて正面からぶつかったときの決め方。</div>
+    </div>
+    <div class="f" data-tab="touch">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pHistory"><span>連続して触れられた回数を覚える（履歴）<small>回数は、向きの合成の重みづけと、濠の通行の判定に使う</small></span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">触れられるたびに1増え、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。向きを合わせるとき、二匹の向きベクトルをそれぞれこの回数倍してから合成するので、混みあって接触が続く個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり。濠のマスには、この回数が閾値以上のときだけ入れる。オフのときは回数を数えない（常に0）。</div>
+    </div>
+
+    <!-- 場所 -->
+    <div class="f" data-tab="place">
+      <div class="row"><label for="pA">広さ（一辺、既定画面の何倍）</label><button type="button" class="help" aria-label="説明">?</button><output id="oA"></output></div>
+      <input type="range" id="pA" min="1" max="6" step="0.5">
+      <div class="sethint">フィールドの一辺。2倍なら面積は4倍。同じ個体数なら広いほどまばらになる。変えるとコースは消える。</div>
+    </div>
+    <div class="f" data-tab="place" data-basic style="--o:1">
+      <div class="row"><label for="pN">個体数</label><button type="button" class="help" aria-label="説明">?</button><output id="oN"></output></div>
+      <input type="range" id="pN" min="2" max="400" step="1">
+      <div class="sethint">カニの数。多いほど混みあって、ぶつかる回数が増える。</div>
+    </div>
+    <div class="f" data-tab="place" data-basic style="--o:4">
+      <div class="row"><label for="pR">体の大きさ</label><button type="button" class="help" aria-label="説明">?</button><output id="oR"></output></div>
+      <input type="range" id="pR" min="3" max="14" step="1">
+      <div class="sethint">カニの半径（画面上の長さ）。大きいほど場が混みあい、群れができやすい。「くわしい設定」の「場所」で最小も決めると、個体ごとにばらつく。</div>
+    </div>
+    <div class="f" data-tab="place">
+      <div class="row"><label for="pRmin">体の大きさ（最小）</label><button type="button" class="help" aria-label="説明">?</button><output id="oRmin"></output></div>
+      <input type="range" id="pRmin" min="3" max="14" step="1">
+      <div class="sethint">最小を上の大きさより小さくすると、個体ごとに最小〜最大の範囲でランダムな大きさになる。</div>
+    </div>
+    <div class="f" data-tab="place">
+      <div class="row stack"><div class="lab"><label for="pInit">最初の配置</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pInit">
+        <option value="spread">全体に散らばる</option>
+        <option value="center">中央にかたまる</option>
+      </select></div>
+      <div class="dep" id="depInit" hidden>コースにスタートがあるので、カニはそこから始まります。</div>
+      <div class="sethint">「中央にかたまる」は巣穴から出てきた直後のように中央に集めて始める。</div>
+    </div>
+    <div class="f" data-tab="place">
+      <div class="row stack"><div class="lab"><label for="pBoundary">端の扱い</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pBoundary">
+        <option value="wrap" selected>つながっている：右端から出ると左端へ（周期境界）</option>
+        <option value="wall">壁：端で止まる</option>
+      </select></div>
+      <div class="dep" id="depBoundary" hidden>コースがある間は、端は壁として扱います。</div>
+      <div class="sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。</div>
+    </div>
+    <div class="f" data-tab="place">
+      <div class="row stack"><div class="lab"><label for="pWallRule">壁に当たったら</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pWallRule">
+        <option value="stop">止まって、いつも通り向きを選び直す</option>
+        <option value="slide">壁に沿って進む</option>
+      </select></div>
+      <div class="dep" id="depWallRule" hidden>端が「壁」のとき、またはコースがあるときに効きます。</div>
+      <div class="sethint">フィールドの端の壁とコースの壁の両方に効く。「止まる」は規則を足さない既定。壁際にたまりやすい。「沿って進む」は、向きのうち壁に向かう成分だけを捨てて歩き続ける。</div>
+    </div>
+
+    <!-- コース -->
+    <div class="f note" data-tab="course">壁・スタート・ゴール・濠を置いて、通路や濠の実験をする。</div>
+    <div class="f" data-tab="course">
+      <div class="row stack"><div class="lab"><label for="courseTpl">ひな形</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="courseTpl">
+        <option value="none">なし</option>
+        <option value="straight">一本道</option>
+        <option value="bend">L字</option>
+        <option value="zigzag">ジグザグ</option>
+        <option value="tee">T字路</option>
+        <option value="neck">狭い出口</option>
+        <option value="moat">濠で囲む</option>
+        <option value="custom" hidden>（自分で編集）</option>
+      </select></div>
+      <div class="sethint">ひな形を選ぶとその形になり、「なし」で消える。自分で描くには、フィールドの上の「コースを編集」を押して塗る。スタートがあればカニはそこから始まり、ゴールがあれば「着いた割合」がフィールドの下に出る。</div>
+    </div>
+    <div class="f" data-tab="course">
+      <div class="row stack"><div class="lab"><label for="courseCell">マスの大きさ</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="courseCell"><option>25</option><option selected>50</option><option>100</option></select></div>
+      <div class="sethint">塗るマスの一辺（画面上の長さ）。変えるとコースは消える。体の直径は6〜28なので、群れを通す通路は3〜4マス幅が目安。</div>
+    </div>
+    <div class="f" data-tab="course">
+      <div class="row stack"><div class="lab"><label for="pMoatRule">濠の判定</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pMoatRule">
+        <option value="entry">入る瞬間だけ</option>
+        <option value="each">濠の中でも一歩ごと</option>
+      </select></div>
+      <div class="dep" id="depMoatRule" hidden>濠を塗るか、ひな形「濠で囲む」を選ぶと効きます。</div>
+      <div class="sethint">濠のマスには、連続して触れられた回数が閾値以上のときだけ入れる。閾値はフィールドの上の「濠の閾値」で決める。「入る瞬間だけ」なら、入ったあとは濠の中を自由に動ける。「一歩ごと」では、濠の中で回数が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
+    </div>
+    <div class="f" data-tab="course">
+      <div class="warn" id="moatWarn" hidden>濠を通るには、「触れられたら」の「連続して触れられた回数を覚える（履歴）」が必要です。いまはオフなので、誰も濠に入れません。<br><button type="button" id="btnHistoryOn">オンにする</button></div>
+    </div>
+
+    <!-- 表示 -->
+    <div class="f" data-tab="view">
+      <div class="row stack"><div class="lab"><label for="pColor">色の意味</label><button type="button" class="help" aria-label="説明">?</button></div>
+      <select id="pColor">
+        <option value="id">個体ごとに固定</option>
+        <option value="heading">進行方向</option>
+        <option value="value">接触回数（連続して触れられた回数）</option>
+      </select></div>
+      <div class="sethint">個体ごとの色にすると同じ個体を追いやすい。進行方向にすると向きの揃い方が見える。接触回数にすると、混みあって回数が育った個体が赤く見える（「履歴」がオンのとき）。</div>
+    </div>
+    <div class="f" data-tab="view">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pTrail" checked><span>軌跡を表示</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">直近1秒ほどの足あと。</div>
+    </div>
+    <div class="f" data-tab="view">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pFollow" checked><span>追跡中の個体を画面の中心に</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">個体をタップすると追跡が始まる。手で画面を動かすと追跡は外れる。</div>
+    </div>
+    <div class="f" data-tab="view">
+      <div class="row"><label for="pZoom">拡大</label><button type="button" class="help" aria-label="説明">?</button><output id="oZoom"></output></div>
+      <input type="range" id="pZoom" min="1" max="8" step="0.25" value="1">
+      <div class="sethint">画面の拡大率。ドラッグで移動、ホイールでも拡大できる。拡大中は右下に全体図が出る。</div>
+    </div>
+    <div class="f" data-tab="view">
+      <div class="row"><label for="pSpd">再生速度</label><button type="button" class="help" aria-label="説明">?</button><output id="oSpd"></output></div>
+      <input type="range" id="pSpd" min="1" max="8" step="1">
+      <div class="sethint">1フレームに何ステップ進めるか。8×で8倍速。</div>
+    </div>
+
+    <!-- 実験 -->
+    <div class="f" data-tab="lab"><h3>一歩先の予期（郡司モデルの要素、既定はオフ）</h3></div>
+    <div class="f" data-tab="lab">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">止まったとき、前方の扇形（角度＝「向きの変え方」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない。郡司ペギオ幸夫『群れは意識をもつ』の相互予期モデルの要素。</div>
+    </div>
+    <div class="f" data-tab="lab">
+      <div class="row"><label for="pK">候補の数</label><button type="button" class="help" aria-label="説明">?</button><output id="oK"></output></div>
+      <input type="range" id="pK" min="1" max="30" step="1">
+      <div class="sethint">止まったとき、前方に思い浮かべる行き先候補の数。</div>
+    </div>
+    <div class="f" data-tab="lab">
+      <div class="checkrow"><label class="check"><input type="checkbox" id="pChase"><span>空いた場所に入る（追尾）</span></label><button type="button" class="help" aria-label="説明">?</button></div>
+      <div class="sethint">候補が誰とも重ならないとき、近くの個体が去った場所へ向かう。</div>
+    </div>
+    <div class="f" data-tab="lab">
+      <div class="row"><label for="pSolo">仲間と重ならなくても進む確率</label><button type="button" class="help" aria-label="説明">?</button><output id="oSolo"></output></div>
+      <input type="range" id="pSolo" min="0" max="1" step="0.05">
+      <div class="sethint">候補が誰とも重ならないとき、それでも一歩進む確率。</div>
+    </div>
+    <div class="f" data-tab="lab"><h3>保存した設定（このブラウザ内）</h3></div>
+    <div class="f" data-tab="lab">
       <div id="savedRow" hidden>
         <select id="savedList" style="width:100%"></select>
         <div class="btns" style="margin-top:6px">
@@ -239,126 +456,9 @@
       </div>
       <div class="btns" style="margin-top:6px"><button id="btnSave">いまの設定を保存</button></div>
     </div>
-
-    <h2>フィールド</h2>
-    <div class="row"><label for="pA">広さ（一辺、既定画面の何倍）</label><output id="oA"></output></div>
-    <input type="range" id="pA" min="1" max="6" step="0.5">
-    <div class="hint sethint">フィールドの一辺。2倍なら面積は4倍。同じ個体数なら広いほどまばらになる。</div>
-    <div class="row stack">
-      <label for="pInit">最初の配置</label>
-      <select id="pInit">
-        <option value="spread">全体に散らばる</option>
-        <option value="center">中央にかたまる</option>
-        <option value="start" disabled>スタート領域（コースで塗った場所）</option>
-      </select>
-      <div class="hint sethint">「中央にかたまる」は巣穴から出てきた直後のように中央に集めて始める。</div>
+    <div class="f" data-tab="lab"><h3>比較実験</h3></div>
+    <div class="f note" data-tab="lab">いまの設定を乱数の種を変えて何回か走らせ、平均を表にします。<a href="#expSection">ページ下の「比較実験」へ</a></div>
     </div>
-    <div class="row stack">
-      <label for="pBoundary">端の扱い</label>
-      <select id="pBoundary">
-        <option value="wrap" selected>つながっている：右端から出ると左端へ（周期境界）</option>
-        <option value="wall">壁：端で止まる</option>
-      </select>
-      <div class="hint sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。コースを置くと自動で「壁」に切り替わり、コースを消すと元に戻る（あとから変えられる）。</div>
-    </div>
-    <div class="row stack">
-      <label for="pWallRule">壁に当たったら</label>
-      <select id="pWallRule">
-        <option value="stop">止まって、いつも通り向きを選び直す</option>
-        <option value="slide">壁に沿って進む</option>
-      </select>
-      <div class="hint sethint">フィールドの端の壁とコースの壁の両方に効く。「止まる」は規則を足さない既定。壁際にたまりやすい。「沿って進む」は、向きのうち壁に向かう成分だけを捨てて歩き続ける。</div>
-    </div>
-    <div class="row stack">
-      <label for="pMoatRule">濠の判定</label>
-      <select id="pMoatRule">
-        <option value="entry">入る瞬間だけ</option>
-        <option value="each">濠の中でも一歩ごと</option>
-      </select>
-      <div class="hint sethint">濠のマスには、カニの値（連続して触れられた回数）が閾値以上のときだけ入れる。値は「触れられた回数で重みづけ（履歴）」がオンのときだけ数える。「一歩ごと」では、濠の中で値が閾値を下回ると、次に触れられるまで動けない（立ち往生）。</div>
-    </div>
-
-    <h2>個体</h2>
-    <div class="row"><label for="pN">個体数</label><output id="oN"></output></div>
-    <input type="range" id="pN" min="2" max="400" step="1">
-    <div class="hint sethint">カニの数。多いほど混みあって、ぶつかる回数が増える。</div>
-    <div class="row"><label for="pR">体の大きさ（最大）</label><output id="oR"></output></div>
-    <input type="range" id="pR" min="3" max="14" step="1">
-    <div class="hint sethint">カニの半径（画面上の長さ）。大きいほど場が混みあい、群れができやすい。</div>
-    <div class="row"><label for="pRmin">体の大きさ（最小）</label><output id="oRmin"></output></div>
-    <input type="range" id="pRmin" min="3" max="14" step="1">
-    <div class="hint sethint">最小を最大より小さくすると、個体ごとに最小〜最大の範囲でランダムな大きさになる。</div>
-    <div class="row"><label for="pV">歩く速さ</label><output id="oV"></output></div>
-    <input type="range" id="pV" min="0.3" max="4" step="0.1">
-    <div class="hint sethint">1ステップ（1/60秒）に進む距離。</div>
-
-    <h2>「少し進んで止まる」</h2>
-    <div class="row"><label for="pL">一度に進む距離（体の何倍）</label><output id="oL"></output></div>
-    <input type="range" id="pL" min="0.5" max="20" step="0.5">
-    <div class="hint sethint">一度に歩く距離を、その個体の体の直径の何倍で決める。</div>
-    <div class="row"><label for="pP">止まる（食べる）時間（秒）</label><output id="oP"></output></div>
-    <input type="range" id="pP" min="0" max="3" step="0.1">
-    <div class="hint sethint">歩き終えてから次に歩き出すまでの時間。食べている時間と考える。</div>
-    <div class="row"><label for="pS">向きの変え方（度）</label><output id="oS"></output></div>
-    <input type="range" id="pS" min="0" max="180" step="5">
-    <div class="hint sethint">止まるたびに、前の向きからこの角度の範囲で向きを変える。180°で完全にランダム。</div>
-    <div class="row stack">
-      <label for="pTurn">角度の意味</label>
-      <select id="pTurn">
-        <option value="uniform">±角度の範囲で一様にランダム</option>
-        <option value="normal">角度を標準偏差とする正規分布</option>
-      </select>
-      <div class="hint sethint">角度の意味。「±角度の範囲で一様」なら10°で0〜10°の範囲、「正規分布」なら10°が標準偏差。</div>
-    </div>
-
-    <details class="group"><summary>「触られたら」</summary>
-    <div class="row"><label for="pT">触られて止まる時間（秒）</label><output id="oT"></output></div>
-    <input type="range" id="pT" min="0" max="3" step="0.1">
-    <div class="hint sethint">触れられたときに止まっている時間。</div>
-    <label class="check"><input type="checkbox" id="pAlign"><span>触られた側は相手の向きに合わせる<small>外すと「止まるだけ」になる（対照実験用）</small></span></label>
-    <label class="check"><input type="checkbox" id="pToucherStop"><span>触った側も止まる<small>既定では触った側は止まらない</small></span></label>
-    <label class="check"><input type="checkbox" id="pHistory"><span>触れられた回数で重みづけ（履歴）<small>向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから合成する。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。混みあって接触が続く個体ほど自分の向きを保つ。二匹とも0回のときは従来どおり</small></span></label>
-    <div class="row stack">
-      <label for="pHeadon">正面からぶつかったら</label>
-      <select id="pHeadon">
-        <option value="merge">二匹の向きを合成</option>
-        <option value="swap">お互いの向きを交換</option>
-      </select>
-      <div class="hint sethint">二匹とも動いていて正面からぶつかったときの決め方。</div>
-    </div>
-
-    </details>
-    <details class="group" id="grpAnticipate"><summary>一歩先の予期</summary>
-    <label class="check"><input type="checkbox" id="pAnticipate"><span>一歩先を予期する<small>止まったとき、前方の扇形（角度＝上の「ばらつき」）に候補を作り、近くの個体の候補と重なる候補にだけ進む。重ならなければ動かない</small></span></label>
-    <div class="row"><label for="pK">候補の数</label><output id="oK"></output></div>
-    <input type="range" id="pK" min="1" max="30" step="1">
-    <div class="hint sethint">止まったとき、前方に思い浮かべる行き先候補の数。</div>
-    <label class="check"><input type="checkbox" id="pChase"><span>空いた場所に入る（追尾）<small>候補が誰とも重ならないとき、近くの個体が去った場所へ向かう</small></span></label>
-    <div class="row"><label for="pSolo">仲間と重ならなくても進む確率</label><output id="oSolo"></output></div>
-    <input type="range" id="pSolo" min="0" max="1" step="0.05">
-    <div class="hint sethint">候補が誰とも重ならないとき、それでも一歩進む確率。</div>
-
-    </details>
-    <details class="group"><summary>表示</summary>
-    <div class="row stack">
-      <label for="pColor">色の意味</label>
-      <select id="pColor">
-        <option value="id">個体ごとに固定</option>
-        <option value="heading">進行方向</option>
-        <option value="value">カニの値（連続して触れられた回数）</option>
-      </select>
-      <div class="hint sethint">個体ごとの色にすると同じ個体を追いやすい。進行方向にすると向きの揃い方が見える。</div>
-    </div>
-    <label class="check"><input type="checkbox" id="pHints" checked><span>設定の説明を表示<small>各スライダーの下の説明文</small></span></label>
-    <label class="check"><input type="checkbox" id="pTrail" checked><span>軌跡を表示<small>直近1秒ほどの足あと</small></span></label>
-    <div class="row"><label for="pZoom">拡大</label><output id="oZoom"></output></div>
-    <input type="range" id="pZoom" min="1" max="8" step="0.25" value="1">
-    <div class="hint sethint">画面の拡大率。ドラッグで移動、ホイールでも拡大できる。</div>
-    <label class="check"><input type="checkbox" id="pFollow" checked><span>追跡中の個体を画面の中心に<small>個体をタップすると追跡が始まる</small></span></label>
-    <div class="row"><label for="pSpd">再生速度</label><output id="oSpd"></output></div>
-    <input type="range" id="pSpd" min="1" max="8" step="1">
-    <div class="hint sethint">1フレームに何ステップ進めるか。8×で8倍速。</div>
-    </details>
   </aside>
 </main>
 
@@ -396,21 +496,23 @@
 </section>
 
 <section class="notes">
-  <h2>細かいルール（詳しく知りたい人向け）</h2>
-  <ol>
+  <details>
+  <summary style="cursor:pointer;font-size:15px;color:var(--ink);font-weight:600">細かいルール（詳しく知りたい人向け）</summary>
+  <ol style="margin-top:8px">
     <li><b>「触った」の判定</b>：動いている個体が、自分の進行方向側にいる相手にぶつかったとき、その相手を「触った」とみなす。止まっている個体は誰も触らない。</li>
     <li><b>両方が動いていて正面からぶつかった場合</b>：二匹とも止まり、二匹の進行方向ベクトルを合成した向きに進む。ちょうど真逆でぶつかって合成がゼロになるときは、止まっていつも通り次の向きを選ぶ。比較用に「向きを交換」も選べる。</li>
-    <li><b>触られて止まっている間にさらに触られた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
-    <li><b>履歴（任意）</b>：「触れられた回数で重みづけ」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。</li>
+    <li><b>触れられて止まっている間にさらに触れられた場合</b>：最初に触った相手の向きを優先し、あとの接触は無視する。</li>
+    <li><b>連続して触れられた回数（履歴、任意）</b>：「連続して触れられた回数を覚える」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。</li>
     <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから左右に、指定した角度の範囲で一様にランダムな角度だけ向きを変える（既定は±40°）。「角度の意味」で、指定角度を標準偏差とする正規分布にも切り替えられる。180°にするとどちらも完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
-    <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。</li>
+    <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。コースがある間は、設定にかかわらず端を壁として扱う（周期境界だと障害物を端から回り込めてしまうため）。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
-    <li><b>濠</b>：閾値つきのマス。カニの値（連続して触れられた回数。「履歴」がオンのときだけ数え、オフなら常に0）が閾値以上のときだけ入れる。「濠の判定」が「入る瞬間だけ」なら、入ったあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、値が足りなければ次に触れられるまで動けない（立ち往生）。濠に入れないカニには、濠は壁と同じ。</li>
+    <li><b>濠</b>：閾値つきのマス。連続して触れられた回数（「履歴」がオンのときだけ数え、オフなら常に0）が閾値以上のときだけ入れる。「濠の判定」が「入る瞬間だけ」なら、入ったあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、値が足りなければ次に触れられるまで動けない（立ち往生）。濠に入れないカニには、濠は壁と同じ。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
   </ol>
+  </details>
 </section>
 
 <script>
@@ -488,8 +590,7 @@
   };
   function applyPreset(name) {
     Object.assign(P, PRESETS[name]);
-    if (P.init) setInit(COURSE.hasStart ? 'start' : P.init);        // a course with a start area keeps its start
-    if (P.anticipate) document.getElementById('grpAnticipate').open = true;
+    if (P.init) setInit(P.init);
     document.getElementById('presetHint').textContent = PRESET_HINT[name] || '';
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
@@ -511,26 +612,25 @@
     });
   }
   for (const k in checks) {
-    document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; });
+    document.getElementById(checks[k]).addEventListener('change', e => { P[k] = e.target.checked; if (k === 'history') refreshDeps(); });
   }
   // display-only settings (not part of presets)
   const D = { color: 'id', trail: true, zoom: 1, follow: true, init: 'spread', headon: 'merge', boundary: 'wrap', turn: 'uniform', wallRule: 'stop', moatRule: 'entry' };
   const legendText = {
     id: '色＝個体（同じ色は同じ個体）、ハサミと目のある側が前',
     heading: '色＝進行方向（同じ色なら同じ向き）、ハサミと目のある側が前',
-    value: '色＝カニの値（連続して触れられた回数）。薄い灰青が0、赤に近いほど大きい（40以上で最も濃い）',
+    value: '色＝接触回数（連続して触れられた回数）。薄い灰青が0、赤に近いほど多い（40以上で最も濃い）',
   };
   document.getElementById('pColor').addEventListener('change', e => {
     D.color = e.target.value;
     document.getElementById('legColor').lastChild.textContent = legendText[D.color];
   });
   document.getElementById('pTrail').addEventListener('change', e => { D.trail = e.target.checked; });
-  document.getElementById('pHints').addEventListener('change', e => { document.body.classList.toggle('nohints', !e.target.checked); try { localStorage.setItem('crabSim.hints', e.target.checked ? '1' : '0'); } catch {} });
-  try { if (localStorage.getItem('crabSim.hints') === '0') { document.getElementById('pHints').checked = false; document.body.classList.add('nohints'); } } catch {}
+  const UI = { full: false, tab: 'walk' };   // simple (basic settings only) or full (tabs); which tab is open
   document.getElementById('pHeadon').addEventListener('change', e => { D.headon = e.target.value; });
   document.getElementById('pFollow').addEventListener('change', e => { D.follow = e.target.checked; });
   document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
-  document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; });
+  document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; refreshDeps(); });
   document.getElementById('pTurn').addEventListener('change', e => { D.turn = e.target.value; });
   document.getElementById('pWallRule').addEventListener('change', e => { D.wallRule = e.target.value; });
   document.getElementById('pMoatRule').addEventListener('change', e => { D.moatRule = e.target.value; });
@@ -553,6 +653,10 @@
   const FREE = 0, WALL = 1, START = 2, GOAL = 3, MOAT = 4;
   const COURSE = { cell: 50, n: 0, cells: new Uint8Array(0), thr: new Uint16Array(0), any: false, hasStart: false, hasGoal: false, hasMoat: false, startCells: [], name: '' };
   let enteredCount = 0, stuckCount = 0;    // crabs that have ever entered a moat cell; crabs stuck in a moat right now
+  // A course needs solid edges (with a wrap-around, crabs slip round obstacles through the edge), and a start area
+  // decides where crabs begin. Both override the settings while the course exists, without changing them.
+  function bnd() { return COURSE.any ? 'wall' : D.boundary; }
+  function initMode() { return COURSE.hasStart ? 'start' : D.init; }
   const EDIT = { on: false, tool: 'wall', painting: false, last: null };
   let arrivedCount = 0, t50 = null;     // crabs that have reached a goal cell; step at which half had arrived
   function ensureCourse() {             // (re)build an empty grid when the field or cell size changed
@@ -580,7 +684,7 @@
   function cellIndexAt(x, y) {
     const n = COURSE.n; if (!n) return -1;
     let i = Math.floor(x / COURSE.cell), j = Math.floor(y / COURSE.cell);
-    if (D.boundary === 'wrap') { i = ((i % n) + n) % n; j = ((j % n) + n) % n; }
+    if (bnd() === 'wrap') { i = ((i % n) + n) % n; j = ((j % n) + n) % n; }
     else if (i < 0 || j < 0 || i >= n || j >= n) return -1;
     return j * n + i;
   }
@@ -590,7 +694,7 @@
   function cellTypeAt(x, y) {
     const n = COURSE.n; if (!COURSE.any || !n) return FREE;
     let i = Math.floor(x / COURSE.cell), j = Math.floor(y / COURSE.cell);
-    if (D.boundary === 'wrap') { i = ((i % n) + n) % n; j = ((j % n) + n) % n; }
+    if (bnd() === 'wrap') { i = ((i % n) + n) % n; j = ((j % n) + n) % n; }
     else if (i < 0 || j < 0 || i >= n || j >= n) return FREE;
     return COURSE.cells[j * n + i];
   }
@@ -609,7 +713,7 @@
   // a crab is a circle, a wall cell is a square: push the crab out along the shortest way.
   // A walking crab that runs into a wall simply stops and (as after any step) picks its next direction.
   function resolveBlocks(a) {
-    const c = COURSE.cell, n = COURSE.n, wrap = D.boundary === 'wrap', r = a.r;
+    const c = COURSE.cell, n = COURSE.n, wrap = bnd() === 'wrap', r = a.r;
     const i0 = Math.floor((a.x - r) / c), i1 = Math.floor((a.x + r) / c);
     const j0 = Math.floor((a.y - r) / c), j1 = Math.floor((a.y + r) / c);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
@@ -708,25 +812,22 @@
     reset();
   }
   function setInit(v) { D.init = v; document.getElementById('pInit').value = v; }
-  function setBoundary(v) { D.boundary = v; document.getElementById('pBoundary').value = v; }
-  let boundaryBeforeCourse = null;      // the edge setting in use before a course switched it to 'wall'
-  let initBeforeCourse = null;          // the starting layout in use before a start area switched it to 'start'
-  // a start area takes over the starting layout; when the start area goes, the old layout comes back
-  function syncInitWithStart() {
-    if (COURSE.hasStart) { if (D.init !== 'start') { initBeforeCourse = D.init; setInit('start'); } }
-    else if (D.init === 'start') { setInit(initBeforeCourse || 'spread'); initBeforeCourse = null; }
-    else initBeforeCourse = null;
+  // settings that a course overrides, or that only apply in some situations: grey them out and say why
+  function refreshDeps() {
+    const dep = (id, on) => { document.getElementById(id).hidden = !on; };
+    document.getElementById('pBoundary').disabled = COURSE.any; dep('depBoundary', COURSE.any);
+    document.getElementById('pInit').disabled = COURSE.hasStart; dep('depInit', COURSE.hasStart);
+    const walls = bnd() === 'wall'; document.getElementById('pWallRule').disabled = !walls; dep('depWallRule', !walls);
+    document.getElementById('pMoatRule').disabled = !COURSE.hasMoat; dep('depMoatRule', !COURSE.hasMoat);
+    dep('moatWarn', COURSE.hasMoat && !P.history);
+    document.getElementById('courseChip').textContent = COURSE.any ? (COURSE.name || '自作') : 'なし';
+    document.getElementById('courseBar').hidden = !(UI.full || COURSE.any || EDIT.on);
   }
   // after any change to the grid: refresh flags and the bits of UI that depend on them
   function courseChanged(edited) {
     scanCourse();
     if (edited) { COURSE.name = COURSE.any ? '自作' : ''; document.getElementById('courseTpl').value = COURSE.any ? 'custom' : 'none'; evictFromWalls(); }
-    // a course needs solid field edges (otherwise crabs slip round obstacles through the wrap-around):
-    // switch the edge to 'wall' when a course appears, and give the old setting back when it is cleared
-    if (COURSE.any && boundaryBeforeCourse === null) { boundaryBeforeCourse = D.boundary; setBoundary('wall'); }
-    else if (!COURSE.any && boundaryBeforeCourse !== null) { setBoundary(boundaryBeforeCourse); boundaryBeforeCourse = null; }
-    document.querySelector('#pInit option[value="start"]').disabled = !COURSE.hasStart;
-    syncInitWithStart();
+    refreshDeps();
     document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
     document.getElementById('tileMoat').hidden = !COURSE.hasMoat;
     document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
@@ -745,10 +846,10 @@
     const h = rand() * TAU;
     let x, y;
     for (let tries = 0; tries < 60; tries++) {
-      if (D.init === 'start' && COURSE.startCells.length) {
+      if (initMode() === 'start' && COURSE.startCells.length) {
         const k = COURSE.startCells[Math.floor(rand() * COURSE.startCells.length)], c = COURSE.cell;
         x = ((k % COURSE.n) + rand()) * c; y = (Math.floor(k / COURSE.n) + rand()) * c;
-      } else if (D.init === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
+      } else if (initMode() === 'center') { x = W / 2 + gauss() * W * 0.04; y = W / 2 + gauss() * W * 0.04; }
       else { x = rand() * W; y = rand() * W; }
       if (cellTypeAt(x, y) !== WALL) break;          // never start inside a wall
     }
@@ -789,7 +890,7 @@
   // displacement from (x1,y1) to (x2,y2); with periodic boundaries the shortest image is used
   function disp(x1, y1, x2, y2) {
     let dx = x2 - x1, dy = y2 - y1;
-    if (D.boundary === 'wrap') { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
+    if (bnd() === 'wrap') { dx -= W * Math.round(dx / W); dy -= W * Math.round(dy / W); }
     return [dx, dy];
   }
   function wrapXY(a) { a.x = (a.x % W + W) % W; a.y = (a.y % W + W) % W; }
@@ -841,7 +942,7 @@
     //    and (as after any step) picks its next direction the usual way. No extra rule.
     //    With periodic boundaries the field wraps instead: leaving one side re-enters from the other.
     for (const a of agents) {
-      if (D.boundary === 'wrap') { wrapXY(a); continue; }
+      if (bnd() === 'wrap') { wrapXY(a); continue; }
       const r = a.r;
       if (a.x < r) { a.x = r; hitWall(a, 1, 0); } else if (a.x > W - r) { a.x = W - r; hitWall(a, -1, 0); }
       if (a.y < r) { a.y = r; hitWall(a, 0, 1); } else if (a.y > W - r) { a.y = W - r; hitWall(a, 0, -1); }
@@ -910,7 +1011,7 @@
       const ang = a.h + (rand() * 2 - 1) * alpha, len = d2 + rand() * Math.max(0, range - d2);
       let x = a.x + dcos(ang) * len, y = a.y + dsin(ang) * len;
       let inside = x > r && x < W - r && y > r && y < W - r;
-      if (D.boundary === 'wrap') { x = (x % W + W) % W; y = (y % W + W) % W; inside = true; }
+      if (bnd() === 'wrap') { x = (x % W + W) % W; y = (y % W + W) % W; inside = true; }
       cands.push({ x, y, ang, len, ok: inside && cellTypeAt(x, y) !== WALL && !occupied(x, y, a, d2), ov: 0 });
     }
     a.cands = cands;
@@ -1155,7 +1256,7 @@
       ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 3, 0, TAU);
       ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = ink; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.font = `600 ${Math.max(9, a.r * 1.6)}px system-ui, sans-serif`;
-      ctx.fillText('値 ' + a.touched, a.x + a.r * 3.2, a.y - a.r * 1.5);
+      ctx.fillText('接触 ' + a.touched + '回', a.x + a.r * 3.2, a.y - a.r * 1.5);
     }
     // when zoomed in, an overview in the corner shows the whole field and where the window is
     if (D.zoom > 1) {
@@ -1213,7 +1314,7 @@
     if (COURSE.hasMoat) {
       const n = agents.length || 1;
       document.getElementById('vMoat').textContent = Math.round(enteredCount / n * 100) + '%';
-      document.getElementById('hMoat').textContent = `一度でも濠のマスに入れた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '') + (P.history ? '' : '　※履歴がオフなので値は常に0で、濠には入れません');
+      document.getElementById('hMoat').textContent = `一度でも濠のマスに入れた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '') + (P.history ? '' : '　※「連続して触れられた回数を覚える（履歴）」がオフなので回数は常に0で、濠には入れません');
       drawSpark('cMoat', hist.moat, 1, css('--accent'));
     }
   }
@@ -1222,7 +1323,7 @@
   const EXP = { rows: [], cancel: false };
   const expEl = id => document.getElementById(id);
   function summarizeCondition() {
-    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${D.init === 'center' ? '中央' : '散'} 端${D.boundary === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''}${COURSE.hasMoat ? ' 濠' + moatThresholds() + (D.moatRule === 'each' ? '(一歩ごと)' : '(入口)') : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
+    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${initMode() === 'start' ? 'スタート' : initMode() === 'center' ? '中央' : '散'} 端${bnd() === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''}${COURSE.hasMoat ? ' 濠' + moatThresholds() + (D.moatRule === 'each' ? '(一歩ごと)' : '(入口)') : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
     if (COURSE.any) c += ` | コース:${COURSE.name || '自作'}`;
     if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
     return c;
@@ -1371,10 +1472,11 @@
   // ---- course toolbar ----
   document.getElementById('btnEdit').addEventListener('click', e => {
     EDIT.on = !EDIT.on; e.currentTarget.setAttribute('aria-pressed', EDIT.on); e.currentTarget.textContent = EDIT.on ? '編集を終える' : 'コースを編集';
-    for (const id of ['courseTools', 'cellWrap', 'btnCourseClear', 'courseHint']) document.getElementById(id).hidden = !EDIT.on;
+    for (const id of ['courseTools', 'btnCourseClear', 'courseHint']) document.getElementById(id).hidden = !EDIT.on;
     document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
     arena.classList.toggle('editing', EDIT.on);
     if (EDIT.on) { selected = -1; ensureCourse(); }
+    refreshDeps();
   });
   for (const b of document.querySelectorAll('.coursebar .tool')) b.addEventListener('click', () => {
     EDIT.tool = b.dataset.tool;
@@ -1389,6 +1491,7 @@
   document.getElementById('courseCell').addEventListener('change', e => {
     COURSE.cell = +e.target.value; document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
   });
+  document.getElementById('btnHistoryOn').addEventListener('click', () => { P.history = true; document.getElementById('pHistory').checked = true; refreshDeps(); });
   document.getElementById('btnCourseClear').addEventListener('click', () => {
     if (COURSE.any && !confirm('コースをすべて消しますか')) return;
     document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
@@ -1407,7 +1510,7 @@
   function applyState(o, hint) {
     if (o.seed !== undefined && isFinite(+o.seed)) seed = Math.max(1, Math.floor(+o.seed));
     for (const k of SHARE_KEYS) if (k in o) P[k] = (typeof PRESETS.tidal1[k] === 'boolean') ? (o[k] === true || o[k] === '1' || o[k] === 1) : +o[k];
-    if (o.init) { D.init = o.init; document.getElementById('pInit').value = D.init; }
+    if (o.init && o.init !== 'start') { D.init = o.init; document.getElementById('pInit').value = D.init; }   // old links: 'start' now follows from the course
     if (o.headon) { D.headon = o.headon; document.getElementById('pHeadon').value = D.headon; }
     if (o.boundary) { D.boundary = o.boundary; document.getElementById('pBoundary').value = D.boundary; }
     if (o.turn) { D.turn = o.turn; document.getElementById('pTurn').value = D.turn; }
@@ -1423,13 +1526,13 @@
     COURSE.name = loaded ? decodeURIComponent(o.courseName || '') || '読み込み' : '';
     document.getElementById('courseTpl').value = loaded ? 'custom' : 'none';
     courseChanged(false);
-    if (o.boundary === 'wall' || o.boundary === 'wrap') setBoundary(o.boundary);
-    if (o.init) { setInit(COURSE.hasStart || o.init !== 'start' ? o.init : 'spread'); initBeforeCourse = COURSE.hasStart ? 'center' : null; }
+    if (o.ui === 'full' || loaded) setFull(true);           // a link made with the full panel opens it; a course lives there
+    if (loaded) setTab('course');
     reset();
   }
   // sharing as a URL (#N=300&A=2&...)
   function stateToUrl() {
-    const o = currentState();
+    const o = currentState(); if (UI.full) o.ui = 'full';
     const q = Object.keys(o).map(k => k + '=' + (typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : encodeURIComponent(o[k])));
     return location.href.split('#')[0] + '#' + q.join('&');
   }
@@ -1473,12 +1576,29 @@
     delete all[name]; storeSaved(all); refreshSavedList();
   });
   refreshSavedList();
+  // ---- settings panel: "?" help, the simple / full switch, tabs ----
+  for (const b of document.querySelectorAll('.help')) b.addEventListener('click', () => b.closest('.f').classList.toggle('open'));
+  function setFull(on) {
+    UI.full = !!on; document.body.classList.toggle('full', UI.full); document.getElementById('uiFull').checked = UI.full;
+    try { localStorage.setItem('crabSim.ui', UI.full ? 'full' : 'simple'); } catch {}
+    refreshDeps();
+  }
+  function setTab(name) {
+    if (!document.querySelector(`.tabs button[data-tab="${name}"]`)) name = 'walk';
+    UI.tab = name; document.body.dataset.tab = name;
+    for (const b of document.querySelectorAll('.tabs button')) b.classList.toggle('on', b.dataset.tab === name);
+    try { localStorage.setItem('crabSim.tab', name); } catch {}
+  }
+  document.getElementById('uiFull').addEventListener('change', e => setFull(e.target.checked));
+  for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => setTab(b.dataset.tab));
+  let uiSaved = null, tabSaved = null; try { uiSaved = localStorage.getItem('crabSim.ui'); tabSaved = localStorage.getItem('crabSim.tab'); } catch {}
+  setTab(tabSaved || 'walk'); setFull(uiSaved === 'full');
   setZoom(1);
   applyPreset('tidal1');
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP,
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab,
     get fingerprint() { let t = 0; for (const a of agents) t += a.x * 1.0001 + a.y * 0.9999 + a.h; return t; } };
 })();
 </script>
