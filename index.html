@@ -173,7 +173,7 @@
       <label id="moatThrWrap" hidden>濠の閾値 <input id="moatThr" type="number" min="1" max="99999" value="20"></label>
       <button id="btnCourseClear" hidden>すべて消す</button>
     </div>
-    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。濠は、塗ったときの閾値をマスごとに持ちます（編集モードでないときに閾値を変えると、すべての濠のマスに適用されます）。</div>
+    <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。「濠の閾値」を変えると、すべての濠のマスに適用されます。</div>
     <canvas id="arena" width="600" height="600" aria-label="シミュレーション画面"></canvas>
     <div class="ctrl">
       <button class="primary" id="btnPlay">一時停止</button>
@@ -1566,11 +1566,16 @@
     for (const o of document.querySelectorAll('.coursebar .tool')) o.classList.toggle('on', o === b);
   });
   document.getElementById('courseTpl').addEventListener('change', e => { if (e.target.value !== 'custom') applyTemplate(e.target.value); });
+  // one threshold for the whole moat: changing the number re-stamps every moat cell, editing or not
   document.getElementById('moatThr').addEventListener('change', () => {
-    if (EDIT.on || !COURSE.hasMoat) return;                 // while editing it only affects what is painted next
-    const thr = currentThreshold();
+    const thr = currentThreshold(); document.getElementById('moatThr').value = thr;
     for (let k = 0; k < COURSE.cells.length; k++) if (COURSE.cells[k] === MOAT) COURSE.thr[k] = thr;
   });
+  // show the threshold a loaded course carries (the largest one, if cells differ)
+  function syncThresholdInput() {
+    let mx = 0; for (let k = 0; k < COURSE.cells.length; k++) if (COURSE.cells[k] === MOAT && COURSE.thr[k] > mx) mx = COURSE.thr[k];
+    if (mx) document.getElementById('moatThr').value = mx;
+  }
   document.getElementById('courseCell').addEventListener('change', e => {
     COURSE.cell = +e.target.value; document.getElementById('courseTpl').value = 'none'; clearCourse(); courseChanged(false);
   });
@@ -1626,6 +1631,7 @@
     // a shared or saved setting carries its own course (or none)
     clearCourse();
     const loaded = o.course && decodeCourse(decodeURIComponent(o.course));
+    if (loaded) syncThresholdInput();
     COURSE.name = loaded ? decodeURIComponent(o.courseName || '') || '読み込み' : '';
     document.getElementById('courseTpl').value = loaded ? 'custom' : 'none';
     courseChanged(false);
