@@ -170,7 +170,7 @@
         <button class="tool" data-tool="moat"><i class="sw" style="background:var(--moat)"></i>濠</button>
         <button class="tool" data-tool="erase">消しゴム</button>
       </span>
-      <label id="moatThrWrap" hidden>濠の閾値 <input id="moatThr" type="number" min="1" max="999" value="20"></label>
+      <label id="moatThrWrap" hidden>濠の閾値 <input id="moatThr" type="number" min="1" max="99999" value="20"></label>
       <button id="btnCourseClear" hidden>すべて消す</button>
     </div>
     <div class="hint" id="courseHint" hidden style="font-size:12px;color:var(--ink-3)">フィールドをドラッグして塗ります。編集をやめると、タップで追跡・ドラッグで移動に戻ります。スタートを塗ると、リセットしたときカニはそこから始まります。濠は、塗ったときの閾値をマスごとに持ちます（編集モードでないときに閾値を変えると、すべての濠のマスに適用されます）。</div>
@@ -377,8 +377,7 @@
         <option value="wrap" selected>つながっている：右端から出ると左端へ（周期境界）</option>
         <option value="wall">壁：端で止まる</option>
       </select></div>
-      <div class="dep" id="depBoundary" hidden>コースがある間は、端は壁として扱います。</div>
-      <div class="sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。</div>
+      <div class="sethint">「つながっている」は右端から出ると左端から現れる（周期境界）。「壁」は端で止まって向きを変える。コースがあるときも選べる。ひな形の通路は周囲を壁で囲んでいるのでどちらでも同じだが、「濠で囲む」は外側が開いているので、「つながっている」だと外に出たカニが反対側から戻ってくる。</div>
     </div>
     <div class="f" data-tab="place">
       <div class="row stack"><div class="lab"><label for="pWallRule">壁に当たったら</label><button type="button" class="help" aria-label="説明">?</button></div>
@@ -531,7 +530,7 @@
     <li><b>連続して触れられた回数と履歴（任意）</b>：回数は常に数えている。「連続して触れられた回数で向きを重みづけ（履歴）」を入れると、向きを合わせるとき、二匹の向きベクトルをそれぞれ「これまでに触れられた回数」倍してから足し、その向きに進む。触れられた側が0回で相手が1回以上なら相手の向きにそのまま従い、二匹とも0回なら従来どおり。回数は連続した接触の数で、触れられないまま一歩（歩いて止まって次を決める）を終えると0に戻る。</li>
     <li><b>「向きを少し変える」</b>：止まるたびに、前の向きから左右に、指定した角度の範囲で一様にランダムな角度だけ向きを変える（既定は±40°）。「角度の意味」で、指定角度を標準偏差とする正規分布にも切り替えられる。180°にするとどちらも完全にランダムになる。</li>
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
-    <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。コースがある間は、設定にかかわらず端を壁として扱う（周期境界だと障害物を端から回り込めてしまうため）。</li>
+    <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。コースがあるときも同じ設定に従う。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
     <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
@@ -675,18 +674,18 @@
 
   // ---------- course: a grid of square cells painted onto the field ----------
   const FREE = 0, WALL = 1, START = 2, GOAL = 3, MOAT = 4;
-  const COURSE = { cell: 50, n: 0, cells: new Uint8Array(0), thr: new Uint16Array(0), any: false, hasStart: false, hasGoal: false, hasMoat: false, startCells: [], name: '' };
+  const COURSE = { cell: 50, n: 0, cells: new Uint8Array(0), thr: new Uint32Array(0), any: false, hasStart: false, hasGoal: false, hasMoat: false, startCells: [], name: '' };
   let enteredCount = 0, stuckCount = 0;    // crabs that have ever entered a moat cell; crabs stuck in a moat right now
-  // A course needs solid edges (with a wrap-around, crabs slip round obstacles through the edge), and a start area
-  // decides where crabs begin. Both override the settings while the course exists, without changing them.
-  function bnd() { return COURSE.any ? 'wall' : D.boundary; }
+  // the edge setting as the simulation uses it (kept as a function so the course can consult it in one place);
+  // a start area decides where crabs begin while the course exists, without changing the setting
+  function bnd() { return D.boundary; }
   function initMode() { return COURSE.hasStart ? 'start' : D.init; }
   const EDIT = { on: false, tool: 'wall', painting: false, last: null };
   let arrivedCount = 0, t50 = null;     // crabs that have reached a goal cell; step at which half had arrived
   function ensureCourse() {             // (re)build an empty grid when the field or cell size changed
     const n = Math.round(W / COURSE.cell);
     if (n === COURSE.n && COURSE.cells.length === n * n) return false;
-    COURSE.n = n; COURSE.cells = new Uint8Array(n * n); COURSE.thr = new Uint16Array(n * n); COURSE.name = ''; scanCourse();
+    COURSE.n = n; COURSE.cells = new Uint8Array(n * n); COURSE.thr = new Uint32Array(n * n); COURSE.name = ''; scanCourse();
     return true;
   }
   function scanCourse() {
@@ -806,7 +805,7 @@
   function decodeCourse(str) {
     const m = /^(\d+)_(\d+)_([0-9owsgm.]+)$/.exec(String(str || '')); if (!m) return false;
     const cell = +m[1], n = +m[2]; if (![25, 50, 100].includes(cell) || n !== Math.round(W / cell)) return false;
-    const cells = new Uint8Array(n * n), thr = new Uint16Array(n * n); let k = 0;
+    const cells = new Uint8Array(n * n), thr = new Uint32Array(n * n); let k = 0;
     for (const t of m[3].matchAll(/(\d*)(?:([owsg])|m(\d+)\.)/g)) {
       const cnt = +(t[1] || 1), v = t[2] ? 'owsg'.indexOf(t[2]) : MOAT, h = t[3] ? +t[3] : 0;
       for (let q = 0; q < cnt && k < cells.length; q++) { cells[k] = v; thr[k] = h; k++; }
@@ -818,7 +817,7 @@
   function clearCourse() { COURSE.n = 0; ensureCourse(); COURSE.name = ''; }
   // ready-made courses, drawn on a 24 x 24 plan and scaled to the current grid. Everything starts as wall.
   function carve(g, c0, r0, c1, r1, t) { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) g[r][c] = t || FREE; }
-  function currentThreshold() { return Math.max(1, Math.min(999, Math.round(+document.getElementById('moatThr').value || 20))); }
+  function currentThreshold() { return Math.max(1, Math.min(99999, Math.round(+document.getElementById('moatThr').value || 20))); }
   const TEMPLATES = {
     straight: ['一本道', g => { carve(g, 1, 8, 6, 15, START); carve(g, 7, 10, 16, 13); carve(g, 17, 8, 22, 15, GOAL); }],
     bend:     ['L字', g => { carve(g, 1, 15, 6, 22, START); carve(g, 7, 17, 18, 20); carve(g, 15, 7, 18, 16); carve(g, 11, 1, 22, 6, GOAL); }],
@@ -849,7 +848,6 @@
   // settings that a course overrides, or that only apply in some situations: grey them out and say why
   function refreshDeps() {
     const dep = (id, on) => { document.getElementById(id).hidden = !on; };
-    document.getElementById('pBoundary').disabled = COURSE.any; dep('depBoundary', COURSE.any);
     document.getElementById('pInit').disabled = COURSE.hasStart; dep('depInit', COURSE.hasStart);
     const walls = bnd() === 'wall'; document.getElementById('pWallRule').disabled = !walls; dep('depWallRule', !walls);
     document.getElementById('pMoatRule').disabled = !COURSE.hasMoat; dep('depMoatRule', !COURSE.hasMoat);
@@ -1393,7 +1391,8 @@
     if (COURSE.hasMoat) {
       const n = agents.length || 1;
       document.getElementById('vMoat').textContent = Math.round(enteredCount / n * 100) + '%';
-      document.getElementById('hMoat').textContent = `一度でも濠に踏み込めた個体の割合。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '');
+      let mx = 0; for (const a of agents) if (a.touched > mx) mx = a.touched;
+      document.getElementById('hMoat').textContent = `一度でも濠に踏み込めた個体の割合。いちばん多い個体の接触回数：${mx}回。` + (D.moatRule === 'each' ? `いま濠の中で動けない個体：${stuckCount}匹（${Math.round(stuckCount / n * 100)}%）` : '');
       drawSpark('cMoat', hist.moat, 1, css('--accent'));
     }
   }
@@ -1582,9 +1581,9 @@
 
   // ---- ready-made experiments: a preset plus a course, a moat rule and a colour, applied in one go ----
   const EXPERIMENTS = {
-    moatEntry: { preset: 'tidal1', set: { moatRule: 'entry' }, course: 'moat', thr: 20, color: 'value',
+    moatEntry: { preset: 'tidal1', set: { moatRule: 'entry', boundary: 'wall' }, course: 'moat', thr: 20, color: 'value',
       hint: '実験「濠を渡る」：中央の300匹を濠が囲む。連続して触れられた回数が閾値以上のカニだけ渡れる。色は接触回数。「触れる」の「履歴」を入れると向きの重みづけも加わる。' },
-    moatEach:  { preset: 'tidal1', set: { moatRule: 'each' }, course: 'moat', thr: 20, color: 'value',
+    moatEach:  { preset: 'tidal1', set: { moatRule: 'each', boundary: 'wall' }, course: 'moat', thr: 20, color: 'value',
       hint: '実験「濠を渡る（一歩ごとに判定）」：濠の中でも一歩ごとに回数を見る。途中で回数が切れたカニは濠の中で動けなくなる。' },
     tank:      { preset: 'tidal1', set: { N: 40, R: 10, Rmin: 10, init: 'spread', wallRule: 'slide' }, course: 'tank', color: 'id',
       hint: '実験「細長い水槽で往復」：6：1の水槽に40匹、壁に沿って進む設定。群れの重心が端から端へ往復するか。実際のカニ（600×100 mm）では規則的に往復する。' },
