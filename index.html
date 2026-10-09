@@ -220,6 +220,17 @@
         <canvas id="cGoal"></canvas>
         <div class="hint" id="hGoal">一度でもゴールのマスに入った個体の割合。</div>
       </div>
+      <div class="tile" id="tileSort" hidden>
+        <div class="label">大きさの選り分け</div>
+        <div class="value" id="vSort">—</div>
+        <canvas id="cSort"></canvas>
+        <div class="hint">接している相手との体の大きさの差 ÷ 無作為な相手との差。1なら大きさに関係なく集まる。小さいほど同じ大きさどうし。</div>
+      </div>
+      <div class="tile" id="tileWallShare" hidden>
+        <div class="label">壁際にいる割合（大きい半分 / 小さい半分）</div>
+        <div class="value" id="vWallShare">—</div>
+        <div class="hint">体の2倍以内に壁（端・コースの壁・渡れない濠）がある個体の割合を、体の大きさの上半分と下半分で分けたもの。</div>
+      </div>
       <div class="tile wide" id="tilePos" hidden>
         <div class="label">群れの位置（長い方向）</div>
         <div class="value" id="vPos">—</div>
@@ -513,6 +524,8 @@
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">半数到達まで</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">濠を渡り始めた / 立ち往生</th>
         <th style="padding:4px 8px;border-bottom:1px solid var(--line)">中央を横切った回数 / 往復の周期</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">大きさの選り分け</th>
+        <th style="padding:4px 8px;border-bottom:1px solid var(--line)">壁際 大 / 小</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -619,7 +632,7 @@
     document.getElementById('presetHint').textContent = PRESET_HINT[name] || '';
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
-    refreshOutputs();
+    refreshOutputs(); refreshSizeTiles();
     W = BASE * P.A;
     reset();
   }
@@ -632,7 +645,7 @@
       P[k] = +e.target.value; refreshOutputs();
       if (k === 'R' && P.Rmin > P.R) { P.Rmin = P.R; document.getElementById('pRmin').value = P.Rmin; }
       if (k === 'Rmin' && P.Rmin > P.R) { P.R = P.Rmin; document.getElementById('pR').value = P.R; }
-      if (k === 'N' || k === 'R' || k === 'Rmin') { resizeAgents(); if (k !== 'N') { for (const a of agents) a.r = randomRadius(); refreshOutputs(); } }
+      if (k === 'N' || k === 'R' || k === 'Rmin') { resizeAgents(); if (k !== 'N') { for (const a of agents) a.r = randomRadius(); refreshOutputs(); refreshSizeTiles(); } }
       if (k === 'A') { W = BASE * P.A; reset(); }
     });
   }
@@ -653,7 +666,7 @@
   document.getElementById('pHeadon').addEventListener('change', e => { D.headon = e.target.value; });
   document.getElementById('pFollow').addEventListener('change', e => { D.follow = e.target.checked; });
   document.getElementById('pInit').addEventListener('change', e => { D.init = e.target.value; reset(); });
-  document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; refreshDeps(); });
+  document.getElementById('pBoundary').addEventListener('change', e => { D.boundary = e.target.value; refreshDeps(); refreshSizeTiles(); });
   document.getElementById('pTurn').addEventListener('change', e => { D.turn = e.target.value; });
   document.getElementById('pWallRule').addEventListener('change', e => { D.wallRule = e.target.value; });
   document.getElementById('pMoatRule').addEventListener('change', e => { D.moatRule = e.target.value; });
@@ -862,6 +875,7 @@
     document.getElementById('tileGoal').hidden = !COURSE.hasGoal;
     document.getElementById('tileMoat').hidden = !COURSE.hasMoat;
     document.getElementById('tilePos').hidden = !COURSE.axis;
+    refreshSizeTiles();
     document.getElementById('moatThrWrap').hidden = !(EDIT.on || COURSE.hasMoat);
     document.getElementById('legCourse').hidden = !COURSE.any;
     if (!COURSE.hasMoat) { enteredCount = 0; stuckCount = 0; for (const a of agents) { a.inMoat = false; a.entered = false; } }
@@ -914,14 +928,15 @@
 
   // ---------- stats ----------
   const HIST = 240;
-  const hist = { phi: [], clu: [], grp: [], touch: [], goal: [], moat: [] };
+  const hist = { phi: [], clu: [], grp: [], touch: [], goal: [], moat: [], sort: [] };
   let touchWindow = [];                // per-step touch counts for the last 5 s
   let stepCount = 0;
   // swarm position along a long course (centroid, 0 = one end, 1 = the other), one sample per second for 10 minutes,
   // plus the times at which it crossed the middle (with hysteresis) to count round trips
   const POS_KEEP = 600;
   const pos = { v: [], side: null, cross: [] };
-  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; hist.moat = []; touchWindow = []; stepCount = 0; pos.v = []; pos.side = null; pos.cross = []; }
+  let wallShare = null;
+  function resetStats() { hist.phi = []; hist.clu = []; hist.grp = []; hist.touch = []; hist.goal = []; hist.moat = []; hist.sort = []; touchWindow = []; stepCount = 0; pos.v = []; pos.side = null; pos.cross = []; wallShare = null; }
   function swarmPosition() {
     const ax = COURSE.axis; if (!ax || !agents.length) return NaN;
     let s = 0; for (const a of agents) s += ax.dir === 'x' ? a.x : a.y;
@@ -1032,6 +1047,7 @@
       pushHist(hist.touch, touchWindow.reduce((s, v) => s + v, 0));
       if (COURSE.hasGoal) pushHist(hist.goal, agents.length ? arrivedCount / agents.length : 0);
       if (COURSE.hasMoat) pushHist(hist.moat, agents.length ? enteredCount / agents.length : 0);
+      if (P.Rmin < P.R) { const v = sizeAssortment(); if (!isNaN(v)) pushHist(hist.sort, v); wallShare = wallShareBySize(); }
     }
     if (COURSE.axis && stepCount % FPS === 0) samplePosition();
   }
@@ -1172,6 +1188,54 @@
     let grouped = 0;
     for (let i = 0; i < n; i++) if (size.get(find(i)) >= 3) grouped++;
     return { largest: best / n, grouped: grouped / n };
+  }
+
+  // Size sorting (Murakami's remark: crabs crowded at the water's edge look like they gather by size).
+  // Assortment: mean body-size difference between touching pairs, divided by the same mean over random pairs.
+  // 1 = size plays no part, below 1 = similar sizes gather, above 1 = different sizes pair up.
+  function sizeAssortment() {
+    const n = agents.length; if (n < 2 || P.Rmin >= P.R) return NaN;
+    let sum = 0, cnt = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = agents[i], b = agents[j];
+      const [dx, dy] = disp(a.x, a.y, b.x, b.y), lk = (a.r + b.r) * 1.1;
+      if (dx * dx + dy * dy < lk * lk) { sum += Math.abs(a.r - b.r); cnt++; }
+    }
+    if (cnt < 10) return NaN;
+    const rs = agents.map(a => a.r).sort((x, y) => x - y);        // mean |ri - rj| over all pairs, via the sorted order
+    let acc = 0, all = 0; for (let k = 0; k < n; k++) { acc += rs[k] * (2 * k - n + 1); all += k; }
+    const expected = acc / all;
+    return expected > 1e-9 ? (sum / cnt) / expected : NaN;
+  }
+  // distance from a crab to the nearest wall: the field edge (when it is a wall) and wall or closed moat cells nearby
+  function wallDistance(a) {
+    let d = Infinity;
+    if (bnd() === 'wall') d = Math.min(a.x, a.y, W - a.x, W - a.y);
+    if (COURSE.any) {
+      const c = COURSE.cell, n = COURSE.n, ci = Math.floor(a.x / c), cj = Math.floor(a.y / c);
+      for (let j = cj - 2; j <= cj + 2; j++) for (let i = ci - 2; i <= ci + 2; i++) {
+        let ii = i, jj = j;
+        if (bnd() === 'wrap') { ii = ((i % n) + n) % n; jj = ((j % n) + n) % n; } else if (i < 0 || j < 0 || i >= n || j >= n) continue;
+        const t = COURSE.cells[jj * n + ii];
+        if (t !== WALL && !(t === MOAT && !moatOpen(a, jj * n + ii))) continue;
+        const px = Math.max(i * c, Math.min(a.x, (i + 1) * c)), py = Math.max(j * c, Math.min(a.y, (j + 1) * c));
+        d = Math.min(d, Math.hypot(a.x - px, a.y - py));
+      }
+    }
+    return d;
+  }
+  // share of the larger half and of the smaller half that stand within two body lengths of a wall
+  function wallShareBySize() {
+    const n = agents.length; if (n < 4 || P.Rmin >= P.R) return null;
+    if (bnd() !== 'wall' && !COURSE.any) return null;
+    const rs = agents.map(a => a.r).sort((x, y) => x - y), med = rs[Math.floor(n / 2)];
+    let big = 0, bigN = 0, small = 0, smallN = 0;
+    for (const a of agents) {
+      const near = wallDistance(a) < a.r * 4;
+      if (a.r >= med) { bigN++; if (near) big++; } else { smallN++; if (near) small++; }
+    }
+    if (!bigN || !smallN) return null;
+    return { big: big / bigN, small: small / smallN };
   }
 
   // ---------- drawing ----------
@@ -1349,6 +1413,11 @@
     }
     g.stroke();
   }
+  function refreshSizeTiles() {
+    const vary = P.Rmin < P.R;
+    document.getElementById('tileSort').hidden = !vary;
+    document.getElementById('tileWallShare').hidden = !(vary && (bnd() === 'wall' || COURSE.any));
+  }
   // a 0..1 series with a fixed window length (drawSpark assumes HIST samples)
   function drawSeries(id, data, keep, color) {
     const c = document.getElementById(id); const dpr = fitCanvas(c);
@@ -1380,6 +1449,12 @@
       document.getElementById('vGoal').textContent = Math.round(g * 100) + '%';
       document.getElementById('hGoal').textContent = `一度でもゴールのマスに入った個体の割合。経過 ${Math.floor(stepCount / FPS)}秒、半数到達：${t50 === null ? 'まだ' : Math.round(t50 / FPS) + '秒'}`;
       drawSpark('cGoal', hist.goal, 1, css('--accent'));
+    }
+    if (P.Rmin < P.R) {
+      const v = hist.sort.at(-1);
+      document.getElementById('vSort').textContent = v === undefined ? '—' : v.toFixed(2);
+      drawSpark('cSort', hist.sort, 2, css('--accent'));
+      document.getElementById('vWallShare').textContent = wallShare ? `${Math.round(wallShare.big * 100)}% / ${Math.round(wallShare.small * 100)}%` : '—';
     }
     if (COURSE.axis) {
       const v = pos.v.at(-1);
@@ -1422,7 +1497,7 @@
     const per = [];
     for (let t = 1; t <= trials && !EXP.cancel; t++) {
       seed = 1000 + t; reset();
-      const acc = { grp: 0, clu: 0, phi: 0, touch: 0, stuck: 0, n: 0 };
+      const acc = { grp: 0, clu: 0, phi: 0, touch: 0, stuck: 0, n: 0, sort: 0, sortN: 0, big: 0, small: 0, wsN: 0 };
       for (let k = 0; k < total && !EXP.cancel;) {
         const chunkEnd = Math.min(total, k + 90);
         for (; k < chunkEnd; k++) {
@@ -1431,6 +1506,7 @@
             const c = largestClusterFrac();
             acc.grp += c.grouped; acc.clu += c.largest; acc.phi += polarization();
             acc.touch += touchWindow.reduce((s2, v) => s2 + v, 0); acc.stuck += agents.length ? stuckCount / agents.length : 0; acc.n++;
+            if (P.Rmin < P.R) { const v = sizeAssortment(); if (!isNaN(v)) { acc.sort += v; acc.sortN++; } const ws = wallShareBySize(); if (ws) { acc.big += ws.big; acc.small += ws.small; acc.wsN++; } }
           }
         }
         expEl('expStatus').textContent = `実験中 ${t}/${trials} 回目（${Math.round(k / total * 100)}%）`;
@@ -1438,7 +1514,8 @@
       }
       if (!EXP.cancel && acc.n) per.push({ grp: acc.grp / acc.n, clu: acc.clu / acc.n, phi: acc.phi / acc.n, touch: acc.touch / acc.n,
         goal: agents.length ? arrivedCount / agents.length : 0, t50: t50 === null ? NaN : t50 / FPS,
-        moat: agents.length ? enteredCount / agents.length : 0, stuck: acc.stuck / acc.n, cross: pos.cross.length, period: roundTripPeriod() });
+        moat: agents.length ? enteredCount / agents.length : 0, stuck: acc.stuck / acc.n, cross: pos.cross.length, period: roundTripPeriod(),
+        sort: acc.sortN ? acc.sort / acc.sortN : NaN, big: acc.wsN ? acc.big / acc.wsN : NaN, small: acc.wsN ? acc.small / acc.wsN : NaN });
     }
     agents = saved.agents; seed = saved.seed; rand = saved.rand; Object.assign(hist, saved.hist); Object.assign(pos, saved.pos);
     touchWindow = saved.touchWindow; stepCount = saved.stepCount; selected = saved.selected; running = saved.running;
@@ -1463,8 +1540,11 @@
       const ps = r.per.map(x => x.period).filter(v => !isNaN(v));
       osc = `${fmtNum(r.per.map(x => x.cross), 1)}回 / ` + (ps.length ? `${fmtNum(ps, 0)}秒（${ps.length}/${r.per.length}回）` : '—');
     }
+    const sorts = r.per.map(x => x.sort).filter(v => !isNaN(v)), bigs = r.per.map(x => x.big).filter(v => !isNaN(v)), smalls = r.per.map(x => x.small).filter(v => !isNaN(v));
+    const sort = sorts.length ? fmtNum(sorts, 2) : '—';
+    const ws = bigs.length ? `${fmtPct(bigs)} / ${fmtPct(smalls)}` : '—';
     return [r.name, r.cond, `${r.trials}×${r.secs}秒`,
-      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half, moat, osc];
+      fmtPct(r.per.map(x => x.grp)), fmtPct(r.per.map(x => x.clu)), fmtNum(r.per.map(x => x.phi), 2), fmtNum(r.per.map(x => x.touch), 0), goal, half, moat, osc, sort, ws];
   }
   function renderExp() {
     const tb = expEl('expTable').querySelector('tbody'); tb.innerHTML = '';
@@ -1478,7 +1558,7 @@
   expEl('btnExpCancel').addEventListener('click', () => { EXP.cancel = true; });
   expEl('btnExpClear').addEventListener('click', () => { if (!EXP.rows.length || confirm('表を消しますか')) { EXP.rows = []; renderExp(); } });
   expEl('btnExpCopy').addEventListener('click', async e => {
-    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠を渡り始めた/立ち往生', '中央を横切った回数/往復の周期'];
+    const head = ['名前', '条件', '試行', '3匹以上の群れ', '最大の群れ', '整列度', '接触/5秒', 'ゴール到達', '半数到達まで', '濠を渡り始めた/立ち往生', '中央を横切った回数/往復の周期', '大きさの選り分け', '壁際 大/小'];
     const tsv = [head, ...EXP.rows.map(rowCells)].map(r => r.join('\t')).join('\n');
     try { await navigator.clipboard.writeText(tsv); e.target.textContent = 'コピーしました'; }
     catch { window.prompt('コピーしてください', tsv); }
@@ -1627,7 +1707,7 @@
     for (const k in ctl) { const [id] = ctl[k]; document.getElementById(id).value = P[k]; }
     for (const k in checks) document.getElementById(checks[k]).checked = P[k];
     document.getElementById('presetHint').textContent = hint;
-    refreshOutputs(); W = BASE * P.A;
+    refreshOutputs(); refreshSizeTiles(); W = BASE * P.A;
     // a shared or saved setting carries its own course (or none)
     clearCourse();
     const loaded = o.course && decodeCourse(decodeURIComponent(o.course));
@@ -1707,7 +1787,7 @@
   const fromUrl = stateFromUrl(); if (fromUrl) applyState(fromUrl, 'リンクで共有された設定');
   requestAnimationFrame(frame);
   window.crabSim = { get agents() { return agents; }, get selected() { return selected; }, params: P, course: COURSE,
-    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab, applyExperiment, pos, roundTripPeriod,
+    get arrived() { return arrivedCount; }, get t50() { return t50; }, get entered() { return enteredCount; }, get stuck() { return stuckCount; }, cellTypeAt, exp: EXP, ui: UI, setFull, setTab, applyExperiment, pos, roundTripPeriod, sizeAssortment, wallShareBySize,
     stepN(n) { for (let k = 0; k < n; k++) step(); }, setSeed(v) { seed = v; reset(); },
     get fingerprint() { let t = 0; for (const a of agents) t += a.x * 1.0001 + a.y * 0.9999 + a.h; return t; } };
 })();
