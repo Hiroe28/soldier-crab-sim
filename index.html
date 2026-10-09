@@ -373,19 +373,6 @@
       <input type="range" id="pRmin" min="3" max="14" step="1">
       <div class="sethint">最小を上の大きさより小さくすると、個体ごとに最小〜最大の範囲でランダムな大きさになる。</div>
     </div>
-    <div class="f" data-tab="place"><h3>大きさの効果（大きさにばらつきがあるとき）</h3></div>
-    <div class="f" data-tab="place">
-      <div class="checkrow"><label class="check"><input type="checkbox" id="pSizeSpeed"><span>速さは大きさに比例</span></label><button type="button" class="help" aria-label="説明">?</button></div>
-      <div class="sethint">歩く速さを「体の大きさ ÷ 平均の大きさ」倍にする。全員同じ大きさなら変わらない。</div>
-    </div>
-    <div class="f" data-tab="place">
-      <div class="checkrow"><label class="check"><input type="checkbox" id="pSizeMass"><span>押し合いでは大きい個体が動きにくい（質量）</span></label><button type="button" class="help" aria-label="説明">?</button></div>
-      <div class="sethint">重なった二匹を押し分けるとき、動く距離を質量（大きさの2乗）の逆比で分ける。既定は半分ずつ。大きい個体はほとんど動かず、小さい個体が押しのけられる。</div>
-    </div>
-    <div class="f" data-tab="place">
-      <div class="checkrow"><label class="check"><input type="checkbox" id="pSizeStop"><span>触れられて止まる時間は大きさに比例</span></label><button type="button" class="help" aria-label="説明">?</button></div>
-      <div class="sethint">触れられて止まる時間を「体の大きさ ÷ 平均の大きさ」倍にする。大きい個体ほど反応が遅い、という質量の表し方。</div>
-    </div>
     <div class="f" data-tab="place">
       <div class="row stack"><div class="lab"><label for="pInit">最初の配置</label><button type="button" class="help" aria-label="説明">?</button></div>
       <select id="pInit">
@@ -558,7 +545,7 @@
     <li><b>向きを合わせたあと</b>：一歩ぶん進んだら、通常どおり止まってランダムに向きを変える（合わせた向きを覚え続けない）。</li>
     <li><b>フィールドの端</b>：既定の「つながっている（周期境界）」では、右端から出た個体は左端から現れ、端はない。「壁」にすると、端に当たった個体はそれ以上進めないので止まり、いつも通り次の向きを選ぶ。跳ね返りはしない。コースがあるときも同じ設定に従う。</li>
     <li><b>一歩先の予期（プリセット「予期」でのみ有効）</b>：郡司ペギオ幸夫『群れは意識をもつ』第3〜4章の相互予期モデルを参考に、「候補が他個体の候補と重なった場所へ進む（重ならなければ、決めた確率でしか進まない）」「空いた場所に入る（追尾）」の二つを、「進んで止まる」「触られたら止まる」はそのままに加えた。候補の重なりは体の直径以内、候補は前方の扇形（角度は「ばらつき」）で長さは体1個ぶんから一歩ぶんまで。本のモデルは格子上で、向きを揃える規則なしに群れができるとしている。</li>
-    <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。任意で「速さは大きさに比例」「押し合いでは大きい個体が動きにくい（質量＝大きさの2乗、押し分ける距離を質量の逆比で配分）」「触れられて止まる時間は大きさに比例」を入れられる。いずれも平均の大きさに対する比で効くので、全員同じ大きさなら何も変わらない。</li>
+    <li><b>体の大きさ</b>：最小と最大が同じなら全員その半径。最小を小さくすると、各個体の半径を最小から最大までの一様乱数で決める（例：最小11、最大14）。接触の判定は二匹の半径の和、一歩の長さと群れの判定はその個体の大きさを基準にする。</li>
     <li><b>コース</b>：フィールドを正方形のマスに区切り、壁・スタート・ゴールを塗れる。壁に当たった個体は、既定では、それ以上進めないので止まり、いつも通り次の向きを選ぶ（規則を足さない扱い）。「壁に当たったら」を「壁に沿って進む」にすると、向きのうち壁に向かう成分だけを捨てて歩き続ける。壁に当たることは「触れられた」に数えない。スタートがあれば、カニはそこから始まる。ゴールのマスに一度でも入った個体を「着いた」と数える。</li>
     <li><b>濠</b>：閾値つきのマス。連続して触れられた回数が閾値以上のカニだけが渡れる（「履歴」のオン・オフは関係ない）。「濠の判定」が「渡り始める瞬間だけ」なら、踏み込んだあとは濠の中を自由に動ける。「濠の中でも一歩ごと」なら、濠の中で歩き出すたびに判定し、回数が足りなければ次に触れられるまで動けない（立ち往生）。渡れないカニには、濠は壁と同じ。</li>
     <li><b>時間</b>：1秒＝60ステップ。距離は「体の大きさ」を基準にしている。</li>
@@ -608,12 +595,12 @@
   // ---------- parameters ----------
   const P = {};
   const PRESETS = {
-    tidal1:  { N: 300, A: 2, R: 6, Rmin: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, sizeSpeed: false, sizeMass: false, sizeStop: false, spd: 1, init: 'center' },
-    tidal2:  { N: 300, A: 2, R: 6, Rmin: 6, V: 0.6, L: 3, P: 1.0, S: 30,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, sizeSpeed: false, sizeMass: false, sizeStop: false, spd: 1, init: 'spread' },
-    big:     { N: 300, A: 2, R: 14, Rmin: 11, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, sizeSpeed: false, sizeMass: false, sizeStop: false, spd: 1, init: 'spread' },
-    rule:    { N: 50,  A: 2, R: 6, Rmin: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, sizeSpeed: false, sizeMass: false, sizeStop: false, spd: 1, init: 'spread' },
-    notouch: { N: 300, A: 2, R: 6, Rmin: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: false, toucherStop: false, history: false, anticipate: false, chase: false, sizeSpeed: false, sizeMass: false, sizeStop: false, spd: 1, init: 'center' },
-    anticip: { N: 80,  A: 2, R: 6, Rmin: 6, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, solo: 0.2, align: true,  toucherStop: false, history: false, anticipate: true,  chase: true, sizeSpeed: false, sizeMass: false, sizeStop: false, spd: 1, init: 'spread' },
+    tidal1:  { N: 300, A: 2, R: 6, Rmin: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
+    tidal2:  { N: 300, A: 2, R: 6, Rmin: 6, V: 0.6, L: 3, P: 1.0, S: 30,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    big:     { N: 300, A: 2, R: 14, Rmin: 11, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    rule:    { N: 50,  A: 2, R: 6, Rmin: 6, V: 0.6, L: 6, P: 0.5, S: 180, T: 0.3, K: 10, solo: 0,   align: true,  toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'spread' },
+    notouch: { N: 300, A: 2, R: 6, Rmin: 6, V: 0.6, L: 5, P: 0.5, S: 40,  T: 0.3, K: 10, solo: 0,   align: false, toucherStop: false, history: false, anticipate: false, chase: false, spd: 1, init: 'center' },
+    anticip: { N: 80,  A: 2, R: 6, Rmin: 6, V: 0.6, L: 2, P: 0.3, S: 180, T: 0.3, K: 20, solo: 0.2, align: true,  toucherStop: false, history: false, anticipate: true,  chase: true,  spd: 1, init: 'spread' },
   };
   const ctl = {
     N: ['pN','oN', v => v],
@@ -629,7 +616,7 @@
     solo: ['pSolo','oSolo', v => Math.round(v * 100) + '%'],
     spd: ['pSpd','oSpd', v => v + '×'],
   };
-  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', history: 'pHistory', anticipate: 'pAnticipate', chase: 'pChase', sizeSpeed: 'pSizeSpeed', sizeMass: 'pSizeMass', sizeStop: 'pSizeStop' };
+  const checks = { align: 'pAlign', toucherStop: 'pToucherStop', history: 'pHistory', anticipate: 'pAnticipate', chase: 'pChase' };
 
   const PRESET_HINT = {
     tidal1: '中央にかたまった300匹が広がっていく。少し進んで止まり、向きを40°ほど変えて、また進む。触れられたら止まり、相手の向きに進む。小さな群れが次々にできる。',
@@ -976,10 +963,6 @@
   }
   function wrapXY(a) { a.x = (a.x % W + W) % W; a.y = (a.y % W + W) % W; }
 
-  // size effects (optional): everything is relative to the nominal mean body size, so a swarm of equal bodies is unchanged
-  function sizeFactor(a) { return a.r / ((P.R + Math.min(P.Rmin, P.R)) / 2); }
-  function speedOf(a) { return P.sizeSpeed ? P.V * sizeFactor(a) : P.V; }
-  function touchStopSteps(a) { return Math.max(1, P.T * FPS * (P.sizeStop ? sizeFactor(a) : 1)); }
   // ---------- one simulation step ----------
   function step() {
     let touches = 0;
@@ -987,9 +970,8 @@
     // 1. own motion
     for (const a of agents) {
       if (a.state === 0) {
-        const v = speedOf(a);
-        a.x += dcos(a.h) * v; a.y += dsin(a.h) * v;
-        a.remain -= v;
+        a.x += dcos(a.h) * P.V; a.y += dsin(a.h) * P.V;
+        a.remain -= P.V;
         if (a.remain <= 0) { a.state = 1; a.remain = P.P * FPS; }
       } else if (a.state === 1) {
         if (--a.remain <= 0) { if (moatHolds(a)) a.remain = Math.max(1, P.P * FPS); else decide(a, 2 * a.r); }
@@ -1019,10 +1001,8 @@
         }
 
         // separate overlapping bodies
-        const ux = dx / dist, uy = dy / dist, gap = d2 - dist;
-        let fa = 0.5, fb = 0.5;                                 // share of the gap each one yields
-        if (P.sizeMass) { const ma = a.r * a.r, mb = b.r * b.r; fa = mb / (ma + mb); fb = ma / (ma + mb); }
-        a.x -= ux * gap * fa; a.y -= uy * gap * fa; b.x += ux * gap * fb; b.y += uy * gap * fb;
+        const push = (d2 - dist) / 2, ux = dx / dist, uy = dy / dist;
+        a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push;
       }
     }
 
@@ -1171,7 +1151,7 @@
     const w = historyWeights(a, b) || [1, 1];
     const h = mergeHeading(a.h, b.h, w[0], w[1]);
     for (const c of [a, b]) {
-      c.state = 2; c.remain = touchStopSteps(c); c.flash = 12;
+      c.state = 2; c.remain = Math.max(1, P.T * FPS); c.flash = 12;
       c.hNext = P.align ? (h === null ? newHeading(c.h) : h) : c.h;
     }
     a.touched++; b.touched++; a.touchedLately = b.touchedLately = true;
@@ -1179,13 +1159,13 @@
   }
   function touch(t, v) {
     if (v.state === 2) return 0;               // already reacting to an earlier touch
-    v.state = 2; v.remain = touchStopSteps(v); v.flash = 12;
+    v.state = 2; v.remain = Math.max(1, P.T * FPS); v.flash = 12;
     let h = t.h;
     const w = historyWeights(v, t);
     if (w) { const m = mergeHeading(v.h, t.h, w[0], w[1]); h = m === null ? newHeading(v.h) : m; }
     v.hNext = P.align ? h : v.h;
     v.touched++; v.touchedLately = true;
-    if (P.toucherStop && t.state === 0) { t.state = 2; t.remain = touchStopSteps(t); t.hNext = t.h; }
+    if (P.toucherStop && t.state === 0) { t.state = 2; t.remain = Math.max(1, P.T * FPS); t.hNext = t.h; }
     return 1;
   }
   function pushHist(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
@@ -1496,7 +1476,7 @@
   const EXP = { rows: [], cancel: false };
   const expEl = id => document.getElementById(id);
   function summarizeCondition() {
-    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${initMode() === 'start' ? 'スタート' : initMode() === 'center' ? '中央' : '散'} 端${bnd() === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''}${COURSE.hasMoat ? ' 濠' + moatThresholds() + (D.moatRule === 'each' ? '(一歩ごと)' : '(入口)') : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}${P.sizeSpeed ? ' 速∝大' : ''}${P.sizeMass ? ' 質量' : ''}${P.sizeStop ? ' 止∝大' : ''}`;
+    let c = `${P.N}匹 体${P.Rmin < P.R ? P.Rmin + '〜' : ''}${P.R} 広さ${P.A} 配置${initMode() === 'start' ? 'スタート' : initMode() === 'center' ? '中央' : '散'} 端${bnd() === 'wall' ? '壁' : '周期'}${D.wallRule === 'slide' ? ' 壁沿い' : ''}${COURSE.hasMoat ? ' 濠' + moatThresholds() + (D.moatRule === 'each' ? '(一歩ごと)' : '(入口)') : ''} | 一歩${P.L} 止${P.P}s 角${P.S >= 180 ? '全' : '±' + P.S + '°'}${D.turn === 'normal' ? '(正規)' : ''} | 触れ止${P.T}s 合わせ${P.align ? '有' : '無'}${P.toucherStop ? ' 触側止' : ''} 正面${D.headon === 'merge' ? '合成' : '交換'}${P.history ? ' 履歴' : ''}`;
     if (COURSE.any) c += ` | コース:${COURSE.name || '自作'}`;
     if (P.anticipate) c += ` | 予期 候補${P.K} 単独${Math.round(P.solo * 100)}%${P.chase ? ' 追尾' : ''}`;
     return c;
@@ -1707,7 +1687,7 @@
 
   // small hook for scripted checks (not used by the page itself)
   // ---- a "setting" = the slider values + placement + head-on rule, as a plain object ----
-  const SHARE_KEYS = ['N','A','R','Rmin','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','sizeSpeed','sizeMass','sizeStop','spd'];
+  const SHARE_KEYS = ['N','A','R','Rmin','V','L','P','S','T','K','solo','align','toucherStop','history','anticipate','chase','spd'];
   function currentState() {
     const o = {}; for (const k of SHARE_KEYS) o[k] = P[k];
     o.init = D.init; o.headon = D.headon; o.boundary = D.boundary; o.turn = D.turn; o.wallRule = D.wallRule; o.moatRule = D.moatRule;
